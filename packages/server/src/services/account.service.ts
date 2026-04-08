@@ -46,7 +46,7 @@ export function register(username: string, password: string, displayName?: strin
 
   db.insert(accounts).values(account).run()
 
-  return { id: account.id, username: account.username, displayName: account.displayName }
+  return { id: account.id, username: account.username, displayName: account.displayName, isAdmin: false }
 }
 
 export function login(username: string, password: string) {
@@ -61,12 +61,17 @@ export function login(username: string, password: string) {
     throw new AppError(401, '用户名或密码错误')
   }
 
-  return { id: account.id, username: account.username, displayName: account.displayName }
+  return { id: account.id, username: account.username, displayName: account.displayName, isAdmin: !!account.isAdmin }
 }
 
 export function getAccount(accountId: string) {
   const db = getDb()
   const account = db.select().from(accounts).where(eq(accounts.id, accountId)).get()
   if (!account) return null
-  return { id: account.id, username: account.username, displayName: account.displayName }
+  return { id: account.id, username: account.username, displayName: account.displayName, isAdmin: !!account.isAdmin }
+}
+
+export function setAdmin(accountId: string, isAdmin: boolean) {
+  const db = getDb()
+  db.update(accounts).set({ isAdmin, updatedAt: Date.now() }).where(eq(accounts.id, accountId)).run()
 }

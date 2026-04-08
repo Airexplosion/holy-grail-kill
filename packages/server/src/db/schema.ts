@@ -5,6 +5,7 @@ export const accounts = sqliteTable('accounts', {
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
+  isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })
@@ -155,6 +156,20 @@ export const skillTemplates = sqliteTable('skill_templates', {
   index('idx_skill_templates_room').on(table.roomId),
 ])
 
+export const knownOutposts = sqliteTable('known_outposts', {
+  id: text('id').primaryKey(),
+  playerId: text('player_id').notNull().references(() => players.id),
+  outpostId: text('outpost_id').notNull(),
+  ownerPlayerId: text('owner_player_id').notNull(),
+  ownerDisplayName: text('owner_display_name').notNull(),
+  regionId: text('region_id').notNull(),
+  color: text('color').notNull(),
+  discoveredAt: integer('discovered_at').notNull(),
+}, (table) => [
+  index('idx_known_outposts_player').on(table.playerId),
+  uniqueIndex('idx_known_outposts_player_outpost').on(table.playerId, table.outpostId),
+])
+
 export const playerSkills = sqliteTable('player_skills', {
   id: text('id').primaryKey(),
   playerId: text('player_id').notNull().references(() => players.id),
@@ -169,3 +184,88 @@ export const playerSkills = sqliteTable('player_skills', {
 }, (table) => [
   index('idx_player_skills_player').on(table.playerId),
 ])
+
+export const deckBuilds = sqliteTable('deck_builds', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  playerId: text('player_id').notNull().references(() => players.id),
+  strikeCards: text('strike_cards').notNull().default('{"red":0,"blue":0,"green":0}'),
+  skillIds: text('skill_ids').notNull().default('[]'),
+  isLocked: integer('is_locked', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, (table) => [
+  uniqueIndex('idx_deck_builds_room_player').on(table.roomId, table.playerId),
+])
+
+export const combatStates = sqliteTable('combat_states', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  roundNumber: integer('round_number').notNull().default(1),
+  turnIndex: integer('turn_index').notNull().default(0),
+  turnOrder: text('turn_order').notNull().default('[]'),
+  phase: text('phase').notNull().default('play'),
+  activePlayerId: text('active_player_id'),
+  playChain: text('play_chain').notNull().default('[]'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  startedAt: integer('started_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, (table) => [
+  index('idx_combat_states_room').on(table.roomId),
+])
+
+export const combatLogs = sqliteTable('combat_logs', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  roundNumber: integer('round_number').notNull(),
+  playerId: text('player_id'),
+  eventType: text('event_type').notNull(),
+  description: text('description').notNull(),
+  details: text('details').notNull().default('{}'),
+  createdAt: integer('created_at').notNull(),
+}, (table) => [
+  index('idx_combat_logs_room').on(table.roomId, table.createdAt),
+])
+
+export const deckShares = sqliteTable('deck_shares', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  playerId: text('player_id').notNull().references(() => players.id),
+  deckBuildId: text('deck_build_id').notNull(),
+  shareCode: text('share_code').notNull().unique(),
+  createdAt: integer('created_at').notNull(),
+})
+
+// Admin-managed libraries (overrides constants at runtime)
+export const adminSkillLibrary = sqliteTable('admin_skill_library', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  skillClass: text('skill_class').notNull(),
+  rarity: text('rarity').notNull().default('normal'),
+  type: text('type').notNull().default('active'),
+  triggerTiming: text('trigger_timing').notNull().default('manual'),
+  description: text('description').notNull().default(''),
+  flavorText: text('flavor_text'),
+  cost: text('cost').notNull().default('{}'),
+  cooldown: integer('cooldown').notNull().default(0),
+  charges: integer('charges'),
+  targetType: text('target_type').notNull().default('single'),
+  effects: text('effects').notNull().default('[]'),
+  tags: text('tags').notNull().default('[]'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+export const adminStrikeLibrary = sqliteTable('admin_strike_library', {
+  id: text('id').primaryKey(),
+  color: text('color').notNull(),
+  name: text('name').notNull(),
+  baseDamage: integer('base_damage').notNull().default(10),
+  description: text('description').notNull().default(''),
+  effectType: text('effect_type'),
+  effectParams: text('effect_params').notNull().default('{}'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})

@@ -33,6 +33,7 @@ export const C2S = {
   CARD_GM_MODIFY: 'card:gm:modify',
   CARD_GM_INSERT: 'card:gm:insert',
   CARD_GM_TRANSFER: 'card:gm:transfer',
+  CARD_GM_REMOVE: 'card:gm:remove',
 
   SKILL_USE: 'skill:use',
   SKILL_GM_ASSIGN: 'skill:gm:assign',
@@ -53,6 +54,26 @@ export const C2S = {
   LOG_QUERY: 'log:query',
 
   ROOM_CONFIG_UPDATE: 'room:config:update',
+
+  // 备战 - 组卡
+  DECK_BUILD_SUBMIT: 'deck-build:submit',
+  DECK_BUILD_LOCK: 'deck-build:lock',
+  DECK_BUILD_UNLOCK: 'deck-build:unlock',
+  DECK_BUILD_GET: 'deck-build:get',
+
+  // 战斗
+  COMBAT_PLAY_STRIKE: 'combat:play-strike',
+  COMBAT_USE_SKILL: 'combat:use-skill',
+  COMBAT_RESPOND: 'combat:respond',
+  COMBAT_PASS: 'combat:pass',
+  COMBAT_GM_START: 'combat:gm:start',
+  COMBAT_GM_END: 'combat:gm:end',
+  COMBAT_GM_NEXT_TURN: 'combat:gm:next-turn',
+
+  // 技能库 & 分享
+  SKILL_LIBRARY_GET: 'skill-library:get',
+  DECK_SHARE_CREATE: 'deck-share:create',
+  DECK_SHARE_GET: 'deck-share:get',
 } as const
 
 // Server -> Client
@@ -100,6 +121,24 @@ export const S2C = {
 
   LOG_ENTRY: 'log:entry',
   LOG_HISTORY: 'log:history',
+
+  // 备战 - 组卡
+  DECK_BUILD_STATE: 'deck-build:state',
+  DECK_BUILD_LOCKED: 'deck-build:locked',
+  DECK_BUILD_VALIDATION: 'deck-build:validation',
+
+  // 战斗
+  COMBAT_STATE_UPDATE: 'combat:state:update',
+  COMBAT_CHAIN_UPDATE: 'combat:chain:update',
+  COMBAT_TURN_START: 'combat:turn:start',
+  COMBAT_ROUND_END: 'combat:round:end',
+  COMBAT_RESULT: 'combat:result',
+  COMBAT_ENDED: 'combat:ended',
+  COMBAT_LOG_ENTRY: 'combat:log:entry',
+
+  // 技能库 & 分享
+  SKILL_LIBRARY_DATA: 'skill-library:data',
+  DECK_SHARE_DATA: 'deck-share:data',
 
   ERROR: 'error',
 } as const

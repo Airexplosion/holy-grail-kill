@@ -8,9 +8,11 @@ import { PlayerManager } from '@/components/gm/PlayerManager'
 import { PhaseControl } from '@/components/gm/PhaseControl'
 import { OperationLog } from '@/components/gm/OperationLog'
 import { GameConfig } from '@/components/gm/GameConfig'
+import { CardManager } from '@/components/gm/CardManager'
+import { CombatControl } from '@/components/gm/CombatControl'
 import { cn } from '@/lib/cn'
 
-type Tab = 'map' | 'players' | 'phase' | 'config' | 'log'
+type Tab = 'map' | 'players' | 'cards' | 'combat' | 'phase' | 'config' | 'log'
 
 export function GMPage() {
   useSocket()
@@ -24,7 +26,9 @@ export function GMPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'map', label: '地图管理' },
     { id: 'players', label: '玩家管理' },
-    { id: 'phase', label: '阶段控制' },
+    { id: 'cards', label: '卡牌' },
+    { id: 'combat', label: '战斗' },
+    { id: 'phase', label: '阶段' },
     { id: 'config', label: '游戏配置' },
     { id: 'log', label: '操作日志' },
   ]
@@ -56,7 +60,7 @@ export function GMPage() {
         {/* Right: Control Panel */}
         <div className="w-96 border-l border-dark-400 bg-dark-700 flex flex-col">
           {/* Tabs */}
-          <div className="flex border-b border-dark-400">
+          <div className="flex border-b border-dark-400 overflow-x-auto scrollbar-thin">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -77,6 +81,8 @@ export function GMPage() {
           <div className="flex-1 overflow-y-auto p-4">
             {activeTab === 'map' && <MapEditor />}
             {activeTab === 'players' && <PlayerManager />}
+            {activeTab === 'cards' && <CardManager />}
+            {activeTab === 'combat' && <CombatControl />}
             {activeTab === 'phase' && <PhaseControl />}
             {activeTab === 'config' && <GameConfig />}
             {activeTab === 'log' && <OperationLog />}

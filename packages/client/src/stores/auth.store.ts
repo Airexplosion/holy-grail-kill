@@ -9,6 +9,7 @@ interface Account {
   accountId: string
   username: string
   displayName: string
+  isAdmin?: boolean
 }
 
 interface AuthState {

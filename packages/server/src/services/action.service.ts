@@ -123,8 +123,8 @@ export function resolveActions(roomId: string, actionPointIndex: number): Action
   const adjacencyList = mapService.getRoomAdjacencies(roomId)
   const results: ActionResult[] = []
 
-  // Resolution order: moves → scouts → outposts → consumes
-  const order: ActionType[] = ['move_adjacent', 'move_designated', 'scout', 'place_outpost', 'consume']
+  // Resolution order: moves → scouts → outpost placement → outpost destroy → consumes
+  const order: ActionType[] = ['move_adjacent', 'move_designated', 'scout', 'place_outpost', 'destroy_outpost', 'consume']
 
   for (const actionType of order) {
     const batch = submissions.filter(s => s.actionType === actionType)
@@ -163,13 +163,17 @@ export function resolveActions(roomId: string, actionPointIndex: number): Action
             result = { playerId: action.playerId, actionType, success: false, details: '不在任何区域' }
             break
           }
+          // Can scout own region or adjacent regions
           const adjacent = getAdjacentRegions(player.regionId, adjacencyList)
-          if (!adjacent.includes(targetId)) {
-            result = { playerId: action.playerId, actionType, success: false, details: '目标不是相邻区域' }
+          const canScout = targetId === player.regionId || adjacent.includes(targetId)
+          if (!canScout) {
+            result = { playerId: action.playerId, actionType, success: false, details: '目标不在侦查范围内' }
           } else {
             const playersInRegion = playerService.getRoomPlayers(roomId)
-              .filter(p => p.regionId === targetId && !p.isGm)
+              .filter(p => p.regionId === targetId && !p.isGm && p.id !== action.playerId)
               .map(p => ({ id: p.id, name: p.displayName }))
+            // Discover outposts in scouted region
+            outpostService.discoverOutpostsInRegion(action.playerId, targetId, roomId)
             result = {
               playerId: action.playerId, actionType, success: true,
               details: `侦查到 ${playersInRegion.length} 名玩家`,
@@ -182,8 +186,42 @@ export function resolveActions(roomId: string, actionPointIndex: number): Action
           if (!player.regionId) {
             result = { playerId: action.playerId, actionType, success: false, details: '不在任何区域' }
           } else {
-            outpostService.placeOutpost(roomId, action.playerId, player.regionId, player.color)
-            result = { playerId: action.playerId, actionType, success: true, details: '据点放置成功' }
+            const newOutpost = outpostService.placeOutpost(roomId, action.playerId, player.regionId, player.color)
+            // Players in the same region discover this outpost
+            const witnesses = playerService.getRoomPlayers(roomId)
+              .filter(p => p.regionId === player.regionId && !p.isGm && p.id !== action.playerId)
+              .map(p => p.id)
+            outpostService.discoverOutpostForPlayersInRegion(
+              newOutpost,
+              player.displayName,
+              witnesses,
+            )
+            result = { playerId: action.playerId, actionType, success: true, details: '阵地作成成功' }
+          }
+          break
+        }
+        case 'destroy_outpost': {
+          const targetOutpostId = action.payload.targetOutpostId
+          const targetRegionId = action.payload.targetRegionId
+          if (!player.regionId) {
+            result = { playerId: action.playerId, actionType, success: false, details: '不在任何区域' }
+            break
+          }
+          if (player.regionId !== targetRegionId) {
+            result = { playerId: action.playerId, actionType, success: false, details: '必须在目标区域才能破坏阵地' }
+            break
+          }
+          // Check if the outpost actually still exists and is not own
+          const outpost = outpostService.getOutpost(targetOutpostId)
+          if (!outpost || outpost.regionId !== targetRegionId) {
+            result = { playerId: action.playerId, actionType, success: false, details: '目标阵地不存在或已被破坏' }
+          } else if (outpost.playerId === action.playerId) {
+            result = { playerId: action.playerId, actionType, success: false, details: '不能破坏自己的阵地' }
+          } else {
+            outpostService.destroyOutpost(targetOutpostId)
+            // The destroyer now knows it's gone — clear from their known set
+            outpostService.clearKnownOutpost(action.playerId, targetOutpostId)
+            result = { playerId: action.playerId, actionType, success: true, details: '阵地破坏成功', data: { outpostId: targetOutpostId, regionId: targetRegionId } }
           }
           break
         }

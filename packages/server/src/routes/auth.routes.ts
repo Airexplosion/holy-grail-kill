@@ -30,6 +30,7 @@ router.post('/login', validate(accountLoginSchema), (req, res, next) => {
       accountId: account.id,
       username: account.username,
       displayName: account.displayName,
+      isAdmin: account.isAdmin,
     })
     res.json({ success: true, data: { account, token } })
   } catch (err) {
@@ -89,6 +90,7 @@ router.get('/me', accountAuthMiddleware, (req, res) => {
       accountId: auth.accountId,
       username: auth.username,
       displayName: auth.displayName,
+      isAdmin: auth.isAdmin || false,
     },
   })
 })

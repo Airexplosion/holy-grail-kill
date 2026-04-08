@@ -111,6 +111,9 @@ export function LobbyPage() {
           <span className="text-sm text-dark-100">
             欢迎, <span className="text-primary-400 font-medium">{account?.displayName || account?.username}</span>
           </span>
+          {account?.isAdmin && (
+            <a href="/admin" className="btn-sm text-xs bg-red-900/50 text-red-300 hover:bg-red-900/70">管理后台</a>
+          )}
           <button onClick={logout} className="btn-sm btn-secondary text-xs">退出登录</button>
         </div>
       </header>

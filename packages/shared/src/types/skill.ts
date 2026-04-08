@@ -71,3 +71,33 @@ export const SKILL_TYPE_LABELS: Record<SkillType, string> = {
   passive: '被动',
   triggered: '触发',
 }
+
+/** 技能等级：A级(4选) / B级(2选) */
+export type SkillClass = 'A' | 'B'
+
+/** 技能稀有度（用于轮抓阶段分级） */
+export type SkillRarity = 'normal' | 'rare'
+
+export const SKILL_CLASS_LABELS: Record<SkillClass, string> = { A: 'A级', B: 'B级' }
+export const SKILL_RARITY_LABELS: Record<SkillRarity, string> = { normal: '普通', rare: '稀有' }
+
+/** 组卡约束 */
+export const SKILL_SLOTS = { A: 4, B: 2 } as const
+
+/** 技能库条目（预定义的技能模板，不依赖房间） */
+export interface SkillLibraryEntry {
+  readonly id: string
+  readonly name: string
+  readonly skillClass: SkillClass
+  readonly rarity: SkillRarity
+  readonly type: SkillType
+  readonly triggerTiming: SkillTriggerTiming
+  readonly description: string
+  readonly flavorText?: string
+  readonly cost?: { readonly hp?: number; readonly mp?: number }
+  readonly cooldown: number
+  readonly charges?: number
+  readonly targetType: 'self' | 'single' | 'area' | 'global'
+  readonly effects: readonly SkillEffectDef[]
+  readonly tags?: readonly string[]
+}

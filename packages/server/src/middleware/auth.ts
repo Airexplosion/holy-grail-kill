@@ -7,6 +7,7 @@ export interface AccountPayload {
   accountId: string
   username: string
   displayName: string
+  isAdmin?: boolean
 }
 
 // Game-level token (bound to a room)
@@ -58,6 +59,27 @@ export function signAccountToken(payload: AccountPayload): string {
 
 export function signToken(payload: AuthPayload): string {
   return jwt.sign(payload, env.jwtSecret, { expiresIn: '24h' })
+}
+
+export function adminAuthMiddleware(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ success: false, error: '未登录' })
+    return
+  }
+
+  const token = authHeader.slice(7)
+  try {
+    const payload = jwt.verify(token, env.jwtSecret) as AccountPayload & { isAdmin?: boolean }
+    if (!payload.isAdmin) {
+      res.status(403).json({ success: false, error: '需要管理员权限' })
+      return
+    }
+    ;(req as any).auth = payload
+    next()
+  } catch {
+    res.status(401).json({ success: false, error: '令牌无效或已过期' })
+  }
 }
 
 export function verifyToken(token: string): (AuthPayload | AccountPayload) | null {

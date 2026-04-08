@@ -44,4 +44,15 @@ export const api = {
       body: JSON.stringify(body),
       ...opts,
     }),
+  patch: <T>(path: string, body: unknown, opts?: { useAccountToken?: boolean }) =>
+    request<T>(path, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      ...opts,
+    }),
+  delete: <T>(path: string, opts?: { useAccountToken?: boolean }) =>
+    request<T>(path, {
+      method: 'DELETE',
+      ...opts,
+    }),
 }

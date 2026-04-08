@@ -1,8 +1,9 @@
 import { z } from 'zod'
 
 export const submitActionSchema = z.object({
-  actionType: z.enum(['move_adjacent', 'move_designated', 'scout', 'place_outpost', 'consume']),
+  actionType: z.enum(['move_adjacent', 'move_designated', 'scout', 'place_outpost', 'destroy_outpost', 'consume']),
   payload: z.union([
+    z.object({ targetRegionId: z.string().uuid(), targetOutpostId: z.string().uuid() }),
     z.object({ targetRegionId: z.string().uuid() }),
     z.object({ regionId: z.string().uuid() }),
     z.object({}),

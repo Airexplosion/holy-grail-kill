@@ -7,6 +7,8 @@ import { useCardStore } from '@/stores/card.store'
 import { useChatStore } from '@/stores/chat.store'
 import { useRoomStore } from '@/stores/room.store'
 import { useGmStore } from '@/stores/gm.store'
+import { useDeckBuildStore } from '@/stores/deck-build.store'
+import { useCombatStore } from '@/stores/combat.store'
 import { S2C } from 'shared'
 import type { Socket } from 'socket.io-client'
 
@@ -81,6 +83,71 @@ export function useSocket() {
       } else {
         useCardStore.getState().setViewingDeck(data.cards || [])
       }
+    })
+
+    socket.on(S2C.CARD_OPERATION_RESULT, (data: any) => {
+      if (isGm) {
+        useGmStore.getState().setCardFeedback(data)
+        setTimeout(() => useGmStore.getState().setCardFeedback(null), 3000)
+      }
+    })
+
+    // Deck build
+    socket.on(S2C.DECK_BUILD_STATE, (data: any) => {
+      useDeckBuildStore.getState().loadFromServer(data)
+    })
+
+    socket.on(S2C.DECK_BUILD_LOCKED, (data: any) => {
+      const auth = useAuthStore.getState()
+      if (data.playerId === auth.player?.id) {
+        useDeckBuildStore.getState().setLocked(data.locked)
+      }
+    })
+
+    socket.on(S2C.DECK_BUILD_VALIDATION, (data: any) => {
+      useDeckBuildStore.getState().setValidation(data)
+    })
+
+    socket.on(S2C.SKILL_LIBRARY_DATA, (data: any) => {
+      if (data.skills) useDeckBuildStore.getState().setSkillLibrary(data.skills)
+    })
+
+    socket.on(S2C.DECK_SHARE_DATA, (data: any) => {
+      if (data.shareCode) useDeckBuildStore.getState().setShareCode(data.shareCode)
+    })
+
+    // Combat
+    socket.on(S2C.COMBAT_STATE_UPDATE, (data: any) => {
+      useCombatStore.getState().setCombatState(data)
+    })
+    socket.on(S2C.COMBAT_CHAIN_UPDATE, (data: any) => {
+      if (data.chain) useCombatStore.getState().setPlayChain(data.chain)
+    })
+    socket.on(S2C.COMBAT_TURN_START, (data: any) => {
+      useCombatStore.getState().addLogEntry({
+        type: 'turn_start', playerId: data.playerId, description: `轮到行动 (第${data.roundNumber}轮)`,
+      })
+    })
+    socket.on(S2C.COMBAT_ROUND_END, (data: any) => {
+      useCombatStore.getState().addLogEntry({
+        type: 'round_end', playerId: '', description: `第 ${data.roundNumber} 轮结束`,
+      })
+    })
+    socket.on(S2C.COMBAT_RESULT, (data: any) => {
+      for (const r of (data.results || [])) {
+        useCombatStore.getState().addLogEntry({
+          type: 'result', playerId: r.targetId || '', description: r.description,
+        })
+      }
+    })
+    socket.on(S2C.COMBAT_ENDED, (_data: any) => {
+      useCombatStore.getState().endCombat()
+      useCombatStore.getState().addLogEntry({
+        type: 'combat_end', playerId: '', description: '战斗结束',
+      })
+    })
+    socket.on(S2C.COMBAT_LOG_ENTRY, (data: any) => {
+      useCombatStore.getState().addLogEntry(data)
     })
 
     // Stats

@@ -4,10 +4,19 @@ import { LoginPage } from './LoginPage'
 import { LobbyPage } from './LobbyPage'
 import { PlayerPage } from './PlayerPage'
 import { GMPage } from './GMPage'
+import { AdminPage } from './AdminPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   if (!isLoggedIn) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const account = useAuthStore((s) => s.account)
+  if (!isLoggedIn) return <Navigate to="/login" replace />
+  if (!account?.isAdmin) return <Navigate to="/lobby" replace />
   return <>{children}</>
 }
 
@@ -54,6 +63,12 @@ export function AppRouter() {
         <Route
           path="/gm"
           element={<RequireGame requireGm><GMPage /></RequireGame>}
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin><AdminPage /></RequireAdmin>
+          }
         />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

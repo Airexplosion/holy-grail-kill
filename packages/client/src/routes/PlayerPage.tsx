@@ -1,20 +1,31 @@
+import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSocket } from '@/hooks/useSocket'
+import { useGameStore } from '@/stores/game.store'
 import { PhaseDisplay } from '@/components/game/PhaseDisplay'
 import { GameMap } from '@/components/map/GameMap'
 import { CardHand } from '@/components/cards/CardHand'
 import { ActionPanel } from '@/components/game/ActionPanel'
+import { DeckBuildPanel } from '@/components/deck-build/DeckBuildPanel'
+import { CombatPanel } from '@/components/combat/CombatPanel'
+import { SkillBrowser } from '@/components/skills/SkillBrowser'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { useMapStore } from '@/stores/map.store'
+import { useCombatStore } from '@/stores/combat.store'
 
 export function PlayerPage() {
   useSocket()
   const player = useAuthStore((s) => s.player)
   const room = useAuthStore((s) => s.room)
   const leaveRoom = useAuthStore((s) => s.leaveRoom)
+  const phase = useGameStore((s) => s.phase)
   const currentRegionId = useMapStore((s) => s.currentRegionId)
   const regions = useMapStore((s) => s.regions)
   const currentRegion = regions.find(r => r.id === currentRegionId)
+  const isInCombat = useCombatStore((s) => s.isInCombat)
+  const [showSkillBrowser, setShowSkillBrowser] = useState(false)
+  const isStandby = phase === 'standby'
+  const isCombat = phase === 'combat' && isInCombat
 
   if (!player || !room) return null
 
@@ -39,6 +50,7 @@ export function PlayerPage() {
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: player.color }} />
             <span className="text-sm text-dark-100">{player.displayName}</span>
           </div>
+          <button onClick={() => setShowSkillBrowser(true)} className="btn-sm text-xs bg-dark-600 text-dark-200 hover:bg-dark-500">技能图鉴</button>
           <button onClick={leaveRoom} className="btn-sm btn-secondary text-xs">返回大厅</button>
         </div>
       </header>
@@ -79,20 +91,33 @@ export function PlayerPage() {
             </div>
           </div>
 
-          {/* Action Panel */}
-          <ActionPanel />
+          {/* Phase-specific panel */}
+          {isCombat ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <CombatPanel />
+            </div>
+          ) : isStandby ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <DeckBuildPanel />
+            </div>
+          ) : (
+            <>
+              <ActionPanel />
+              <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
+                <CardHand />
+              </div>
+            </>
+          )}
 
-          {/* Cards */}
-          <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
-            <CardHand />
-          </div>
-
-          {/* Chat */}
-          <div className="card h-44 flex-shrink-0">
-            <ChatPanel />
-          </div>
+          {/* Chat (hidden during combat to save space) */}
+          {!isCombat && (
+            <div className="card h-44 flex-shrink-0">
+              <ChatPanel />
+            </div>
+          )}
         </div>
       </main>
+      {showSkillBrowser && <SkillBrowser onClose={() => setShowSkillBrowser(false)} />}
     </div>
   )
 }

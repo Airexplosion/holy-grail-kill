@@ -34,6 +34,7 @@ function initTables(sqlite: Database.Database) {
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       display_name TEXT NOT NULL,
+      is_admin INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -163,6 +164,19 @@ function initTables(sqlite: Database.Database) {
       saved_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS known_outposts (
+      id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL REFERENCES players(id),
+      outpost_id TEXT NOT NULL,
+      owner_player_id TEXT NOT NULL,
+      owner_display_name TEXT NOT NULL,
+      region_id TEXT NOT NULL,
+      color TEXT NOT NULL,
+      discovered_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_known_outposts_player ON known_outposts(player_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_known_outposts_player_outpost ON known_outposts(player_id, outpost_id);
+
     CREATE TABLE IF NOT EXISTS skill_templates (
       id TEXT PRIMARY KEY,
       room_id TEXT NOT NULL REFERENCES rooms(id),
@@ -188,7 +202,91 @@ function initTables(sqlite: Database.Database) {
       metadata TEXT NOT NULL DEFAULT '{}'
     );
     CREATE INDEX IF NOT EXISTS idx_player_skills_player ON player_skills(player_id);
+
+    CREATE TABLE IF NOT EXISTS deck_builds (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      player_id TEXT NOT NULL REFERENCES players(id),
+      strike_cards TEXT NOT NULL DEFAULT '{"red":0,"blue":0,"green":0}',
+      skill_ids TEXT NOT NULL DEFAULT '[]',
+      is_locked INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_builds_room_player ON deck_builds(room_id, player_id);
+
+    CREATE TABLE IF NOT EXISTS combat_states (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      round_number INTEGER NOT NULL DEFAULT 1,
+      turn_index INTEGER NOT NULL DEFAULT 0,
+      turn_order TEXT NOT NULL DEFAULT '[]',
+      phase TEXT NOT NULL DEFAULT 'play',
+      active_player_id TEXT,
+      play_chain TEXT NOT NULL DEFAULT '[]',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      started_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_combat_states_room ON combat_states(room_id);
+
+    CREATE TABLE IF NOT EXISTS combat_logs (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      round_number INTEGER NOT NULL,
+      player_id TEXT,
+      event_type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '{}',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_combat_logs_room ON combat_logs(room_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS deck_shares (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      player_id TEXT NOT NULL REFERENCES players(id),
+      deck_build_id TEXT NOT NULL,
+      share_code TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_skill_library (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      skill_class TEXT NOT NULL,
+      rarity TEXT NOT NULL DEFAULT 'normal',
+      type TEXT NOT NULL DEFAULT 'active',
+      trigger_timing TEXT NOT NULL DEFAULT 'manual',
+      description TEXT NOT NULL DEFAULT '',
+      flavor_text TEXT,
+      cost TEXT NOT NULL DEFAULT '{}',
+      cooldown INTEGER NOT NULL DEFAULT 0,
+      charges INTEGER,
+      target_type TEXT NOT NULL DEFAULT 'single',
+      effects TEXT NOT NULL DEFAULT '[]',
+      tags TEXT NOT NULL DEFAULT '[]',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_strike_library (
+      id TEXT PRIMARY KEY,
+      color TEXT NOT NULL,
+      name TEXT NOT NULL,
+      base_damage INTEGER NOT NULL DEFAULT 10,
+      description TEXT NOT NULL DEFAULT '',
+      effect_type TEXT,
+      effect_params TEXT NOT NULL DEFAULT '{}',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `)
+
+  // Migration: add is_admin to existing accounts table
+  try { sqlite.exec('ALTER TABLE accounts ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0') } catch {}
 }
 
 export function closeDb() {

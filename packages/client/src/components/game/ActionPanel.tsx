@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuthStore } from '@/stores/auth.store'
 import { useGameStore } from '@/stores/game.store'
 import { useMapStore } from '@/stores/map.store'
 import { getSocket } from '@/lib/socket'
@@ -7,14 +8,17 @@ import type { ActionType } from 'shared'
 import { cn } from '@/lib/cn'
 
 export function ActionPanel() {
+  const playerId = useAuthStore((s) => s.player?.id)
   const phase = useGameStore((s) => s.phase)
   const actionPoints = useGameStore((s) => s.actionPoints)
   const actionSubmitted = useGameStore((s) => s.actionSubmitted)
   const currentRegionId = useMapStore((s) => s.currentRegionId)
   const regions = useMapStore((s) => s.regions)
   const adjacencies = useMapStore((s) => s.adjacencies)
+  const outposts = useMapStore((s) => s.outposts)
   const [selectedAction, setSelectedAction] = useState<ActionType | null>(null)
   const [targetRegion, setTargetRegion] = useState<string>('')
+  const [targetOutpost, setTargetOutpost] = useState<string>('')
 
   if (phase !== 'action') {
     return (
@@ -44,26 +48,46 @@ export function ActionPanel() {
   const adjacentIds = getAdjacentRegionIds()
   const adjacentRegions = regions.filter(r => adjacentIds.includes(r.id))
 
-  const needsTarget = selectedAction === 'move_adjacent' || selectedAction === 'move_designated' || selectedAction === 'scout'
+  // Scout: current region + adjacent regions
+  const scoutableRegions = currentRegionId
+    ? [regions.find(r => r.id === currentRegionId), ...adjacentRegions].filter(Boolean)
+    : adjacentRegions
+
+  // Destroy: known outposts in current region (excluding own)
+  const destroyableOutposts = outposts.filter(
+    o => o.regionId === currentRegionId && o.playerId !== playerId,
+  )
+
+  const needsRegionTarget = selectedAction === 'move_adjacent' || selectedAction === 'move_designated' || selectedAction === 'scout'
+  const needsOutpostTarget = selectedAction === 'destroy_outpost'
 
   const handleSubmit = () => {
     if (!selectedAction) return
     let payload: Record<string, unknown> = {}
 
-    if (selectedAction === 'move_adjacent' || selectedAction === 'move_designated' || selectedAction === 'scout') {
+    if (selectedAction === 'move_adjacent' || selectedAction === 'move_designated') {
       if (!targetRegion) return
-      payload = selectedAction === 'place_outpost' ? { regionId: targetRegion } : { targetRegionId: targetRegion }
+      payload = { targetRegionId: targetRegion }
+    }
+    if (selectedAction === 'scout') {
+      if (!targetRegion) return
+      payload = { targetRegionId: targetRegion }
     }
     if (selectedAction === 'place_outpost') {
       payload = { regionId: currentRegionId }
+    }
+    if (selectedAction === 'destroy_outpost') {
+      if (!targetOutpost) return
+      payload = { targetRegionId: currentRegionId, targetOutpostId: targetOutpost }
     }
 
     getSocket().emit(C2S.ACTION_SUBMIT, { actionType: selectedAction, payload })
     setSelectedAction(null)
     setTargetRegion('')
+    setTargetOutpost('')
   }
 
-  const actions: ActionType[] = ['move_adjacent', 'move_designated', 'scout', 'place_outpost', 'consume']
+  const actions: ActionType[] = ['move_adjacent', 'move_designated', 'scout', 'place_outpost', 'destroy_outpost', 'consume']
 
   return (
     <div className="card">
@@ -94,7 +118,7 @@ export function ActionPanel() {
             {actions.map((action) => (
               <button
                 key={action}
-                onClick={() => { setSelectedAction(action); setTargetRegion('') }}
+                onClick={() => { setSelectedAction(action); setTargetRegion(''); setTargetOutpost('') }}
                 className={cn(
                   'btn-sm text-xs text-left',
                   selectedAction === action
@@ -107,8 +131,8 @@ export function ActionPanel() {
             ))}
           </div>
 
-          {/* Target selection */}
-          {needsTarget && selectedAction && (
+          {/* Region target selection */}
+          {needsRegionTarget && selectedAction && (
             <div>
               <label className="text-xs text-dark-300 mb-1 block">
                 选择目标区域:
@@ -119,10 +143,40 @@ export function ActionPanel() {
                 onChange={(e) => setTargetRegion(e.target.value)}
               >
                 <option value="">选择区域...</option>
-                {(selectedAction === 'move_designated' ? regions : adjacentRegions).map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                {(selectedAction === 'move_designated'
+                  ? regions
+                  : selectedAction === 'scout'
+                    ? scoutableRegions
+                    : adjacentRegions
+                ).map((r) => (
+                  <option key={r!.id} value={r!.id}>{r!.name}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Outpost target selection for destroy */}
+          {needsOutpostTarget && (
+            <div>
+              <label className="text-xs text-dark-300 mb-1 block">
+                选择目标阵地:
+              </label>
+              {destroyableOutposts.length === 0 ? (
+                <p className="text-dark-400 text-xs">当前区域没有已知阵地</p>
+              ) : (
+                <select
+                  className="input text-xs"
+                  value={targetOutpost}
+                  onChange={(e) => setTargetOutpost(e.target.value)}
+                >
+                  <option value="">选择阵地...</option>
+                  {destroyableOutposts.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.displayName} 的阵地
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
@@ -130,7 +184,7 @@ export function ActionPanel() {
           {selectedAction && (
             <button
               onClick={handleSubmit}
-              disabled={needsTarget && !targetRegion}
+              disabled={(needsRegionTarget && !targetRegion) || (needsOutpostTarget && !targetOutpost)}
               className="btn-primary w-full btn-sm text-xs"
             >
               确认提交

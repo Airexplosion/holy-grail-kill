@@ -4,6 +4,7 @@ import type { Region, Adjacency, OutpostMarker, PlayerPosition, MapState } from 
 export function filterMapForPlayer(
   fullMap: MapState,
   player: { id: string; regionId: string | null; isGm: boolean },
+  knownOutpostSnapshots?: readonly OutpostMarker[],
 ): MapState {
   // GM sees everything, but is never shown on map
   if (player.isGm) {
@@ -18,11 +19,27 @@ export function filterMapForPlayer(
     ? fullMap.playerPositions.filter(p => p.regionId === player.regionId)
     : []
 
+  // Own outposts: real-time from fullMap (always accurate)
+  const ownOutposts = fullMap.outposts.filter(o => o.playerId === player.id)
+
+  // Others' outposts: snapshots from discovery (may be stale / already destroyed)
+  const snapshots = knownOutpostSnapshots || []
+
+  // Merge: own real + discovered snapshots, deduplicate by id
+  const seenIds = new Set(ownOutposts.map(o => o.id))
+  const mergedOutposts = [...ownOutposts]
+  for (const snap of snapshots) {
+    if (!seenIds.has(snap.id)) {
+      seenIds.add(snap.id)
+      mergedOutposts.push(snap)
+    }
+  }
+
   return {
     regions: fullMap.regions,
     adjacencies: fullMap.adjacencies,
     playerPositions: visiblePlayers,
-    outposts: fullMap.outposts,
+    outposts: mergedOutposts,
   }
 }
 

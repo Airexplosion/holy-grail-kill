@@ -36,3 +36,7 @@ export const cardGmViewSchema = z.object({
   playerId: z.string().uuid(),
   location: z.enum(['deck', 'hand', 'discard']).optional(),
 })
+
+export const cardGmRemoveSchema = z.object({
+  cardId: z.string().uuid(),
+})

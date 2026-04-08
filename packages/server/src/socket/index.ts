@@ -15,10 +15,12 @@ import * as outpostService from '../services/outpost.service.js'
 import * as chatService from '../services/chat.service.js'
 import * as logService from '../services/log.service.js'
 import { filterMapForPlayer, buildPlayerSelfView } from '../engine/visibility.js'
+import { registerDeckBuildHandlers } from './deck-build-handlers.js'
+import { registerCombatHandlers } from './combat-handlers.js'
 import { z } from 'zod'
 import {
   addRegionSchema, updateRegionSchema, setAdjacencySchema, removeAdjacencySchema, movePlayerSchema,
-  cardDrawSchema, cardDiscardSchema, cardDrawSpecificSchema, cardRetrieveDiscardSchema, cardInsertSchema, cardTransferSchema, cardGmViewSchema,
+  cardDrawSchema, cardDiscardSchema, cardDrawSpecificSchema, cardRetrieveDiscardSchema, cardInsertSchema, cardTransferSchema, cardGmViewSchema, cardGmRemoveSchema,
   submitActionSchema, approveActionSchema,
   roomConfigSchema, updatePlayerStatsSchema, bindPlayersSchema,
   sendMessageSchema,
@@ -89,6 +91,8 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     registerActionHandlers(socket, roomKey)
     registerChatHandlers(socket, roomKey)
     registerGmHandlers(socket, roomKey)
+    registerDeckBuildHandlers(socket, roomKey, io!, requireGm, emitError)
+    registerCombatHandlers(socket, roomKey, io!, requireGm, emitError)
 
     socket.on('disconnect', () => {
       const db = getDb()
@@ -146,11 +150,12 @@ function sendInitialState(socket: AuthenticatedSocket, auth: { playerId: string;
 
   // Map
   const fullMap = mapService.getFullMapState(auth.roomId)
+  const knownSnapshots = auth.isGm ? undefined : outpostService.getKnownOutpostSnapshots(auth.playerId)
   const filteredMap = filterMapForPlayer(fullMap, {
     id: auth.playerId,
     regionId: player.regionId,
     isGm: auth.isGm,
-  })
+  }, knownSnapshots)
   socket.emit(S2C.MAP_STATE, filteredMap)
 
   // Self stats
@@ -199,11 +204,12 @@ function broadcastMapUpdate(roomKey: string, roomId: string) {
     const player = allPlayers.find(p => p.id === playerId)
     if (!player) continue
 
+    const knownSnapshots = player.isGm ? undefined : outpostService.getKnownOutpostSnapshots(player.id)
     const filtered = filterMapForPlayer(fullMap, {
       id: player.id,
       regionId: player.regionId,
       isGm: player.isGm,
-    })
+    }, knownSnapshots)
     sock.emit(S2C.MAP_UPDATED, filtered)
   }
 }
@@ -561,6 +567,16 @@ function registerGmHandlers(socket: AuthenticatedSocket, roomKey: string) {
       io?.to(roomKey).emit(S2C.CARD_HAND_UPDATED, { playerId: pid, hand, deckCount: counts.deck, discardCount: counts.discard })
     }
     logService.recordLog({ roomId: auth.roomId, playerId: auth.playerId, actionType: 'gm', description: `GM转移卡牌` })
+  })
+
+  socket.on(C2S.CARD_GM_REMOVE, (data: unknown) => {
+    if (!requireGm(socket)) return
+    const parsed = cardGmRemoveSchema.safeParse(data)
+    if (!parsed.success) { emitError(socket, '参数验证失败'); return }
+
+    cardService.removeCard(parsed.data.cardId)
+    socket.emit(S2C.CARD_OPERATION_RESULT, { success: true, message: '卡牌已删除' })
+    logService.recordLog({ roomId: auth.roomId, playerId: auth.playerId, actionType: 'gm', description: `GM删除卡牌` })
   })
 
   // Player binding
