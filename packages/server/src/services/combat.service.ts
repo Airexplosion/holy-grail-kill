@@ -1,5 +1,6 @@
 /**
- * 战斗服务 — 封装战斗引擎，提供 DB 持久化和对外接口
+ * 战斗服务 — 支持同一房间多场并发战斗
+ * 每场战斗有唯一 combatId，玩家通过 combatId 参与
  */
 
 import { v4 as uuid } from 'uuid'
@@ -17,8 +18,11 @@ import {
 import { createRuntimeSkill } from '../engine/skill-executor.js'
 import type { StrikeColor, CombatAction } from 'shared'
 
-/** In-memory combat state per room */
+/** All active combats keyed by combatId */
 const activeCombats = new Map<string, CombatEngineState>()
+
+/** Player → combatId mapping for quick lookup */
+const playerCombatMap = new Map<string, string>()
 
 export function startCombat(roomId: string, participantIds: string[]) {
   const allSkills = skillLibraryService.getAllSkills()
@@ -28,45 +32,41 @@ export function startCombat(roomId: string, participantIds: string[]) {
     const player = playerService.getPlayer(pid)
     if (!player) throw new Error(`玩家 ${pid} 不存在`)
 
+    // Check player not already in combat
+    if (playerCombatMap.has(pid)) throw new Error(`玩家 ${player.displayName} 已在战斗中`)
+
     const build = deckBuildService.getDeckBuild(roomId, pid)
     if (!build.isLocked) throw new Error(`玩家 ${player.displayName} 未锁定配置`)
 
-    // Build runtime skills
     const skills = build.skillIds
       .map(id => skillMap.get(id))
       .filter(Boolean)
       .map(entry => createRuntimeSkill(entry!))
 
-    // Build strike card hand
     const hand = new Map<StrikeColor, number>([
       ['red', build.strikeCards.red],
       ['blue', build.strikeCards.blue],
       ['green', build.strikeCards.green],
     ])
 
-    return {
-      id: pid,
-      hp: player.hp,
-      hpMax: player.hpMax,
-      mp: player.mp,
-      mpMax: player.mpMax,
-      skills,
-      hand,
-    }
+    return { id: pid, hp: player.hp, hpMax: player.hpMax, mp: player.mp, mpMax: player.mpMax, skills, hand }
   })
 
   const state = initCombat(roomId, participants)
-  activeCombats.set(roomId, state)
+  activeCombats.set(state.combatId, state)
 
-  // Persist initial state
+  // Register player → combat mapping
+  for (const pid of participantIds) {
+    playerCombatMap.set(pid, state.combatId)
+  }
+
   persistState(state)
-
   return getSnapshot(state)
 }
 
-export function processAction(roomId: string, playerId: string, action: CombatAction) {
-  const state = activeCombats.get(roomId)
-  if (!state || !state.isActive) throw new Error('没有进行中的战斗')
+export function processAction(combatId: string, playerId: string, action: CombatAction) {
+  const state = activeCombats.get(combatId)
+  if (!state || !state.isActive) throw new Error('战斗不存在或已结束')
 
   let result: { success: boolean; error?: string; results?: any[] }
 
@@ -89,13 +89,11 @@ export function processAction(roomId: string, playerId: string, action: CombatAc
 
   if (!result.success) throw new Error(result.error || '动作执行失败')
 
-  // Auto-resolve if phase is resolve
   let resolveResults: any[] = []
   if (state.phase === 'resolve') {
     resolveResults = resolveChain(state)
   }
 
-  // Auto-advance turn if phase is end_turn
   let newRound = false
   if (state.phase === 'end_turn') {
     const advanceResult = nextTurn(state)
@@ -112,11 +110,10 @@ export function processAction(roomId: string, playerId: string, action: CombatAc
   }
 }
 
-export function advanceTurn(roomId: string) {
-  const state = activeCombats.get(roomId)
-  if (!state || !state.isActive) throw new Error('没有进行中的战斗')
+export function advanceTurn(combatId: string) {
+  const state = activeCombats.get(combatId)
+  if (!state || !state.isActive) throw new Error('战斗不存在或已结束')
 
-  // Force clear chain and advance
   state.playChain = []
   const { newRound } = nextTurn(state)
   persistState(state)
@@ -124,8 +121,8 @@ export function advanceTurn(roomId: string) {
   return { snapshot: getSnapshot(state), newRound, events: drainEvents(state) }
 }
 
-export function stopCombat(roomId: string) {
-  const state = activeCombats.get(roomId)
+export function stopCombat(combatId: string) {
+  const state = activeCombats.get(combatId)
   if (!state) return null
 
   endCombat(state)
@@ -134,21 +131,38 @@ export function stopCombat(roomId: string) {
   // Sync HP/MP back to player records
   for (const [pid, ps] of state.playerStates) {
     playerService.updatePlayerStats(pid, { hp: ps.hp, mp: ps.mp })
+    playerCombatMap.delete(pid)
   }
 
-  activeCombats.delete(roomId)
+  activeCombats.delete(combatId)
   return { snapshot: getSnapshot(state), events: drainEvents(state) }
 }
 
-export function getCombatState(roomId: string) {
-  const state = activeCombats.get(roomId)
+export function getCombatState(combatId: string) {
+  const state = activeCombats.get(combatId)
   if (!state) return null
   return getSnapshot(state)
 }
 
-export function isInCombat(roomId: string): boolean {
-  const state = activeCombats.get(roomId)
-  return !!state?.isActive
+/** Get combatId for a player (if in combat) */
+export function getPlayerCombatId(playerId: string): string | null {
+  return playerCombatMap.get(playerId) || null
+}
+
+/** Get all active combats in a room */
+export function getRoomCombats(roomId: string) {
+  const results: Array<ReturnType<typeof getSnapshot>> = []
+  for (const state of activeCombats.values()) {
+    if (state.roomId === roomId && state.isActive) {
+      results.push(getSnapshot(state))
+    }
+  }
+  return results
+}
+
+/** Check if a player is in any active combat */
+export function isPlayerInCombat(playerId: string): boolean {
+  return playerCombatMap.has(playerId)
 }
 
 // ===== Helpers =====
@@ -156,7 +170,6 @@ export function isInCombat(roomId: string): boolean {
 function persistState(state: CombatEngineState) {
   const db = getDb()
   const now = Date.now()
-  const id = `combat_${state.roomId}`
 
   const values = {
     roomId: state.roomId,
@@ -170,11 +183,11 @@ function persistState(state: CombatEngineState) {
     updatedAt: now,
   }
 
-  const existing = db.select().from(combatStates).where(eq(combatStates.id, id)).get()
+  const existing = db.select().from(combatStates).where(eq(combatStates.id, state.combatId)).get()
   if (existing) {
-    db.update(combatStates).set(values).where(eq(combatStates.id, id)).run()
+    db.update(combatStates).set(values).where(eq(combatStates.id, state.combatId)).run()
   } else {
-    db.insert(combatStates).values({ id, ...values, startedAt: now }).run()
+    db.insert(combatStates).values({ id: state.combatId, ...values, startedAt: now }).run()
   }
 }
 
@@ -182,7 +195,6 @@ function drainEvents(state: CombatEngineState) {
   const events = [...state.events]
   state.events = []
 
-  // Also persist to combat_logs
   const db = getDb()
   for (const event of events) {
     db.insert(combatLogs).values({

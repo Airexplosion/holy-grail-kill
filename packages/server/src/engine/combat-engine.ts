@@ -31,6 +31,7 @@ import {
 
 /** 服务端完整战斗状态（内存中） */
 export interface CombatEngineState {
+  combatId: string
   roomId: string
   roundNumber: number
   turnIndex: number
@@ -92,7 +93,9 @@ export function initCombat(
     playerHands.set(p.id, new Map(p.hand))
   }
 
+  const combatId = uuid()
   const state: CombatEngineState = {
+    combatId,
     roomId,
     roundNumber: 1,
     turnIndex: 0,
@@ -393,6 +396,7 @@ export function endCombat(state: CombatEngineState) {
 /** 获取可序列化的状态快照（发送给客户端） */
 export function getSnapshot(state: CombatEngineState) {
   return {
+    combatId: state.combatId,
     roomId: state.roomId,
     roundNumber: state.roundNumber,
     turnIndex: state.turnIndex,

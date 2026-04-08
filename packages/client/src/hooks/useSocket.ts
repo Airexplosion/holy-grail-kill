@@ -121,29 +121,31 @@ export function useSocket() {
       useCombatStore.getState().setCombatState(data)
     })
     socket.on(S2C.COMBAT_CHAIN_UPDATE, (data: any) => {
-      if (data.chain) useCombatStore.getState().setPlayChain(data.chain)
+      if (data.chain) useCombatStore.getState().setPlayChain(data.combatId, data.chain)
     })
     socket.on(S2C.COMBAT_TURN_START, (data: any) => {
       useCombatStore.getState().addLogEntry({
-        type: 'turn_start', playerId: data.playerId, description: `轮到行动 (第${data.roundNumber}轮)`,
+        type: 'turn_start', playerId: data.playerId, combatId: data.combatId,
+        description: `轮到行动 (第${data.roundNumber}轮)`,
       })
     })
     socket.on(S2C.COMBAT_ROUND_END, (data: any) => {
       useCombatStore.getState().addLogEntry({
-        type: 'round_end', playerId: '', description: `第 ${data.roundNumber} 轮结束`,
+        type: 'round_end', playerId: '', combatId: data.combatId,
+        description: `第 ${data.roundNumber} 轮结束`,
       })
     })
     socket.on(S2C.COMBAT_RESULT, (data: any) => {
       for (const r of (data.results || [])) {
         useCombatStore.getState().addLogEntry({
-          type: 'result', playerId: r.targetId || '', description: r.description,
+          type: 'result', playerId: r.targetId || '', combatId: data.combatId, description: r.description,
         })
       }
     })
-    socket.on(S2C.COMBAT_ENDED, (_data: any) => {
-      useCombatStore.getState().endCombat()
+    socket.on(S2C.COMBAT_ENDED, (data: any) => {
+      useCombatStore.getState().endCombat(data.combatId)
       useCombatStore.getState().addLogEntry({
-        type: 'combat_end', playerId: '', description: '战斗结束',
+        type: 'combat_end', playerId: '', combatId: data.combatId, description: '战斗结束',
       })
     })
     socket.on(S2C.COMBAT_LOG_ENTRY, (data: any) => {

@@ -14,11 +14,14 @@ interface CombatLogEntry {
   readonly type: string
   readonly playerId: string
   readonly description: string
+  readonly combatId?: string
   readonly data?: Record<string, unknown>
   readonly timestamp?: number
 }
 
 interface CombatState {
+  /** Current player's active combat ID (null if not in combat) */
+  readonly combatId: string | null
   readonly isInCombat: boolean
   readonly roundNumber: number
   readonly turnIndex: number
@@ -30,6 +33,7 @@ interface CombatState {
   readonly combatLog: readonly CombatLogEntry[]
 
   setCombatState: (snapshot: {
+    combatId: string
     roundNumber: number
     turnIndex: number
     turnOrder: readonly string[]
@@ -39,13 +43,14 @@ interface CombatState {
     isActive: boolean
     participants: readonly CombatParticipant[]
   }) => void
-  setPlayChain: (chain: readonly PlayChainEntry[]) => void
+  setPlayChain: (combatId: string, chain: readonly PlayChainEntry[]) => void
   addLogEntry: (entry: CombatLogEntry) => void
-  endCombat: () => void
+  endCombat: (combatId: string) => void
   reset: () => void
 }
 
-export const useCombatStore = create<CombatState>((set) => ({
+export const useCombatStore = create<CombatState>((set, get) => ({
+  combatId: null,
   isInCombat: false,
   roundNumber: 1,
   turnIndex: 0,
@@ -56,22 +61,36 @@ export const useCombatStore = create<CombatState>((set) => ({
   participants: [],
   combatLog: [],
 
-  setCombatState: (snapshot) => set({
-    isInCombat: snapshot.isActive,
-    roundNumber: snapshot.roundNumber,
-    turnIndex: snapshot.turnIndex,
-    turnOrder: snapshot.turnOrder,
-    phase: snapshot.phase,
-    activePlayerId: snapshot.activePlayerId,
-    playChain: snapshot.playChain,
-    participants: snapshot.participants,
-  }),
-  setPlayChain: (playChain) => set({ playChain }),
+  setCombatState: (snapshot) => {
+    const current = get()
+    // Only update if this combat is relevant to this player
+    // (first combat state received sets the combatId, or matches existing)
+    if (current.combatId && current.combatId !== snapshot.combatId) return
+    set({
+      combatId: snapshot.combatId,
+      isInCombat: snapshot.isActive,
+      roundNumber: snapshot.roundNumber,
+      turnIndex: snapshot.turnIndex,
+      turnOrder: snapshot.turnOrder,
+      phase: snapshot.phase,
+      activePlayerId: snapshot.activePlayerId,
+      playChain: snapshot.playChain,
+      participants: snapshot.participants,
+    })
+  },
+  setPlayChain: (combatId, playChain) => {
+    if (get().combatId !== combatId) return
+    set({ playChain })
+  },
   addLogEntry: (entry) => set((s) => ({
     combatLog: [...s.combatLog, { ...entry, timestamp: Date.now() }].slice(-100),
   })),
-  endCombat: () => set({ isInCombat: false }),
+  endCombat: (combatId) => {
+    if (get().combatId !== combatId) return
+    set({ isInCombat: false, combatId: null })
+  },
   reset: () => set({
+    combatId: null,
     isInCombat: false,
     roundNumber: 1,
     turnIndex: 0,

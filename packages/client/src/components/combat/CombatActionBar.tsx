@@ -16,6 +16,7 @@ const COLOR_BG: Record<string, string> = {
 
 export function CombatActionBar() {
   const playerId = useAuthStore((s) => s.player?.id)
+  const combatId = useCombatStore((s) => s.combatId)
   const phase = useCombatStore((s) => s.phase)
   const activePlayerId = useCombatStore((s) => s.activePlayerId)
   const playChain = useCombatStore((s) => s.playChain)
@@ -51,14 +52,14 @@ export function CombatActionBar() {
         <p className="text-xs text-amber-300 font-medium">你被攻击了！是否响应？</p>
         <div className="flex gap-2">
           <button
-            onClick={() => getSocket().emit(C2S.COMBAT_RESPOND, { cardColor: responseColor })}
+            onClick={() => getSocket().emit(C2S.COMBAT_RESPOND, { combatId, cardColor: responseColor })}
             disabled={(strikeCards[responseColor] || 0) <= 0}
             className={cn('btn-sm text-xs flex-1 text-white', COLOR_BG[responseColor], (strikeCards[responseColor] || 0) <= 0 && 'opacity-30')}
           >
             {STRIKE_COLOR_LABELS[responseColor]} 响应 ({strikeCards[responseColor] || 0})
           </button>
           <button
-            onClick={() => getSocket().emit(C2S.COMBAT_RESPOND, {})}
+            onClick={() => getSocket().emit(C2S.COMBAT_RESPOND, { combatId })}
             className="btn-sm text-xs btn-secondary flex-1"
           >
             不响应
@@ -93,7 +94,7 @@ export function CombatActionBar() {
             <button
               key={color}
               disabled={!targetId || (strikeCards[color] || 0) <= 0}
-              onClick={() => getSocket().emit(C2S.COMBAT_PLAY_STRIKE, { cardColor: color, targetId })}
+              onClick={() => getSocket().emit(C2S.COMBAT_PLAY_STRIKE, { combatId, cardColor: color, targetId })}
               className={cn('btn-sm text-xs flex-1 text-white', COLOR_BG[color], (!targetId || (strikeCards[color] || 0) <= 0) && 'opacity-30')}
             >
               {STRIKE_COLOR_LABELS[color]} ({strikeCards[color] || 0})
@@ -113,7 +114,7 @@ export function CombatActionBar() {
               return (
                 <button
                   key={id}
-                  onClick={() => getSocket().emit(C2S.COMBAT_USE_SKILL, { skillId: id, targetId: targetId || undefined })}
+                  onClick={() => getSocket().emit(C2S.COMBAT_USE_SKILL, { combatId, skillId: id, targetId: targetId || undefined })}
                   className="w-full text-left text-xs bg-dark-600 hover:bg-dark-500 rounded px-2 py-1 text-dark-100 flex justify-between"
                 >
                   <span>{skill.name}</span>
@@ -127,7 +128,7 @@ export function CombatActionBar() {
 
       {/* Pass */}
       <button
-        onClick={() => getSocket().emit(C2S.COMBAT_PASS)}
+        onClick={() => getSocket().emit(C2S.COMBAT_PASS, { combatId })}
         className="btn-sm btn-secondary text-xs w-full"
       >
         结束回合
