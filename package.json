@@ -1,0 +1,26 @@
+{
+  "name": "holy-grail-kill",
+  "version": "1.0.0",
+  "private": true,
+  "description": "圣杯杀 - 桌游管理系统",
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "dev:server": "pnpm --filter server run dev",
+    "dev:client": "pnpm --filter client run dev",
+    "build": "pnpm -r run build",
+    "build:shared": "pnpm --filter shared run build",
+    "build:server": "pnpm --filter server run build",
+    "build:client": "pnpm --filter client run build",
+    "test": "pnpm -r run test",
+    "test:server": "pnpm --filter server run test",
+    "test:client": "pnpm --filter client run test",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r run clean"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+  }
+}

@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #1a1b1e;
+    --color-surface: #25262b;
+    --color-border: #373a40;
+    --color-text: #c1c2c5;
+    --color-text-muted: #909296;
+    --color-primary: #4c6ef5;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
+  .btn-primary {
+    @apply btn bg-primary-600 hover:bg-primary-700 text-white;
+  }
+  .btn-secondary {
+    @apply btn bg-dark-500 hover:bg-dark-400 text-dark-50;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 hover:bg-red-700 text-white;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+  .card {
+    @apply bg-dark-600 border border-dark-400 rounded-xl p-4;
+  }
+  .input {
+    @apply w-full bg-dark-700 border border-dark-400 rounded-lg px-3 py-2
+           text-dark-50 placeholder-dark-200
+           focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500;
+  }
+  .label {
+    @apply block text-sm font-medium text-dark-100 mb-1;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+}
