@@ -35,7 +35,7 @@ jobs:
             # Install & build
             pnpm install --frozen-lockfile || pnpm install
             pnpm run build:shared
-            pnpm run build
+            pnpm --filter client run build
 
             # Start or restart with pm2
             if pm2 describe holy-grail-kill > /dev/null 2>&1; then

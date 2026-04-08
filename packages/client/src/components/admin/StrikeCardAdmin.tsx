@@ -79,7 +79,7 @@ function StrikeCardEditor({ card, onSave, onCancel }: {
   onCancel: () => void
 }) {
   const [id, setId] = useState(card?.id || '')
-  const [color, setColor] = useState(card?.color || 'red')
+  const [color, setColor] = useState<'red' | 'blue' | 'green'>(card?.color as 'red' | 'blue' | 'green' || 'red')
   const [name, setName] = useState(card?.name || '')
   const [baseDamage, setBaseDamage] = useState(card?.baseDamage?.toString() || '10')
   const [description, setDescription] = useState(card?.description || '')
@@ -117,7 +117,7 @@ function StrikeCardEditor({ card, onSave, onCancel }: {
         </div>
         <div>
           <label className="text-[10px] text-dark-300">颜色</label>
-          <select className="input text-xs w-full" value={color} onChange={(e) => setColor(e.target.value)}>
+          <select className="input text-xs w-full" value={color} onChange={(e) => setColor(e.target.value as 'red' | 'blue' | 'green')}>
             <option value="red">红</option>
             <option value="blue">蓝</option>
             <option value="green">绿</option>

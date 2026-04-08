@@ -25,7 +25,7 @@ export function SkillEditor({ skill, onSave, onCancel }: SkillEditorProps) {
   const [mpCost, setMpCost] = useState(skill?.cost?.mp?.toString() || '')
   const [cooldown, setCooldown] = useState(skill?.cooldown?.toString() || '0')
   const [charges, setCharges] = useState(skill?.charges?.toString() || '')
-  const [targetType, setTargetType] = useState(skill?.targetType || 'single')
+  const [targetType, setTargetType] = useState<'self' | 'single' | 'area' | 'global'>(skill?.targetType || 'single')
   const [effectsJson, setEffectsJson] = useState(JSON.stringify(skill?.effects || [], null, 2))
   const [tagsStr, setTagsStr] = useState((skill?.tags || []).join(', '))
   const [enabled, setEnabled] = useState(skill?.enabled !== false)
@@ -109,7 +109,7 @@ export function SkillEditor({ skill, onSave, onCancel }: SkillEditorProps) {
         </div>
         <div>
           <label className="text-[10px] text-dark-300">目标</label>
-          <select className="input text-xs w-full" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
+          <select className="input text-xs w-full" value={targetType} onChange={(e) => setTargetType(e.target.value as 'self' | 'single' | 'area' | 'global')}>
             <option value="self">自身</option>
             <option value="single">单体</option>
             <option value="area">区域</option>
