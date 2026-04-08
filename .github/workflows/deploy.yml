@@ -28,9 +28,9 @@ jobs:
             fi
 
             cd "$APP_DIR"
+            git clean -fd
             git fetch --all
-            git checkout --force main
-            git pull origin main --force
+            git reset --hard origin/main
 
             # Install & build
             pnpm install --frozen-lockfile || pnpm install
