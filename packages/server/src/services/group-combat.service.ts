@@ -3,7 +3,10 @@
  * 整合 group-combat-engine + encounter-engine + damage-calculator
  */
 
+import { eq, and } from 'drizzle-orm'
 import type { StrikeColor, WarResponse } from 'shared'
+import { getDb } from '../db/connection.js'
+import { deckBuilds } from '../db/schema.js'
 import * as groupService from './group.service.js'
 import * as playerService from './player.service.js'
 import {
@@ -20,6 +23,26 @@ import {
 } from '../engine/encounter-engine.js'
 import { rankIndex } from '../engine/attribute-engine.js'
 import type { AttributeRank } from 'shared'
+
+/** 从 deckBuilds 表读取玩家的击牌分配 */
+function loadDeckBuildHand(roomId: string, playerId: string): Map<StrikeColor, number> {
+  const db = getDb()
+  const build = db.select().from(deckBuilds)
+    .where(and(eq(deckBuilds.roomId, roomId), eq(deckBuilds.playerId, playerId)))
+    .get()
+
+  if (build) {
+    const cards = JSON.parse(build.strikeCards) as { red: number; blue: number; green: number }
+    return new Map([
+      ['red', cards.red || 8],
+      ['blue', cards.blue || 8],
+      ['green', cards.green || 8],
+    ])
+  }
+
+  // 默认平均分配
+  return new Map([['red', 8], ['blue', 8], ['green', 8]])
+}
 
 // 内存中维护活跃的战斗
 const activeCombats = new Map<string, GroupCombatEngineState>()
@@ -97,7 +120,7 @@ function startCombatFromWar(roomId: string, war: WarDeclarationRecord): GroupCom
         ac: master.armorClass || 0,
       },
       tacticalStyleColor: (master.tacticalStyle as StrikeColor) || null,
-      hand: new Map([['red', 8], ['blue', 8], ['green', 8]]), // TODO: from deck build
+      hand: loadDeckBuildHand(roomId, servant.id)
     })
   }
 

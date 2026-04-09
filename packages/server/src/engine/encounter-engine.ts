@@ -176,6 +176,58 @@ export function getPendingWarForGroup(roomId: string, groupId: string): WarDecla
 }
 
 /**
+ * 处理逃离效果
+ * - 弃置所有地点牌
+ * - 移动到指定地点或据点
+ * - 直至下回合结束无法使用/消耗任何牌
+ */
+export interface FleeResult {
+  readonly groupId: string
+  readonly targetRegionId: string | null
+  readonly cardsDiscarded: number
+  /** 逃离后直到下回合结束的禁用标记 */
+  readonly disabledUntilTurn: number
+}
+
+export function processFlee(
+  roomId: string,
+  groupId: string,
+  targetRegionId: string | null,
+  currentTurn: number,
+): FleeResult {
+  const state = getState(roomId)
+
+  // 标记逃离状态（禁用牌到下回合结束 = currentTurn + 1）
+  return {
+    groupId,
+    targetRegionId,
+    cardsDiscarded: 0, // 实际弃牌由调用方处理（需要访问卡牌服务）
+    disabledUntilTurn: currentTurn + 1,
+  }
+}
+
+/**
+ * 处理战术撤离（战斗结束后可选）
+ * 移动到相邻地点（对手可得知方向）
+ */
+export interface TacticalRetreatResult {
+  readonly groupId: string
+  readonly targetRegionId: string
+  readonly visibleToOpponents: boolean
+}
+
+export function processTacticalRetreat(
+  groupId: string,
+  targetRegionId: string,
+): TacticalRetreatResult {
+  return {
+    groupId,
+    targetRegionId,
+    visibleToOpponents: true,  // 对手可得知撤离方向
+  }
+}
+
+/**
  * 清除已结算的宣战
  */
 export function clearResolvedWars(roomId: string): void {

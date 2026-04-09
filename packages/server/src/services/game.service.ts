@@ -10,6 +10,7 @@ import {
 } from '../engine/phase-machine.js'
 import * as groupService from './group.service.js'
 import type { GamePhase, GameStage, RoomConfig } from 'shared'
+import { triggerPhaseEffects } from '../engine/phase-effects.js'
 
 export function getRoom(roomId: string) {
   const db = getDb()
@@ -57,6 +58,8 @@ export function advancePhase(roomId: string): { phase: GamePhase; turnNumber: nu
       updatedAt: Date.now(),
     }).where(eq(rooms.id, roomId)).run()
 
+    // 触发回合开始阶段效果
+    triggerPhaseEffects(roomId, 'round_start')
     return { phase: 'round_start', turnNumber: newTurn }
   }
 
@@ -66,16 +69,8 @@ export function advancePhase(roomId: string): { phase: GamePhase; turnNumber: nu
     updatedAt: Date.now(),
   }).where(eq(rooms.id, roomId)).run()
 
-  // 行动阶段入口：重置行动点
-  if (next === 'action') {
-    const config = room.config
-    const ap = config.defaultActionPoints || 4
-    db.update(players).set({
-      actionPoints: ap,
-      actionPointsMax: ap,
-      updatedAt: Date.now(),
-    }).where(eq(players.roomId, roomId)).run()
-  }
+  // 触发新阶段的入口效果
+  triggerPhaseEffects(roomId, next, { defaultAP: room.config.defaultActionPoints })
 
   // 设置新阶段的超时自动推进
   const timeoutSeconds = room.config.phaseTimeoutSeconds
