@@ -10,6 +10,7 @@ import {
   deriveServantStats,
   deriveMasterStats,
 } from '../engine/attribute-engine.js'
+import { computeArchetypeModifiers } from '../engine/archetype-effects.js'
 import * as playerService from './player.service.js'
 import * as groupService from './group.service.js'
 
@@ -129,6 +130,38 @@ export function selectArchetype(
     archetypeId,
     updatedAt: Date.now(),
   }).where(eq(players.id, playerId)).run()
+
+  // 应用范型效果到派生属性
+  const mods = computeArchetypeModifiers(archetypeId)
+  const player = playerService.getPlayer(playerId)
+  if (player) {
+    const updates: Record<string, unknown> = { updatedAt: Date.now() }
+
+    if (mods.masterMpMaxBonus) {
+      updates.mpMax = player.mpMax + mods.masterMpMaxBonus
+      updates.mp = player.mp + mods.masterMpMaxBonus
+    }
+    if (mods.masterHandSizeBonus) {
+      updates.handSizeMax = (player.handSizeMax || 5) + mods.masterHandSizeBonus
+    }
+    if (mods.masterDamageBonusFlat) {
+      updates.baseDamage = (player.baseDamage || 0) + mods.masterDamageBonusFlat
+    }
+
+    if (Object.keys(updates).length > 1) {
+      db.update(players).set(updates as any).where(eq(players.id, playerId)).run()
+    }
+
+    // 应用秘钥扣减
+    if (mods.loseSecretKey > 0) {
+      const group = groupService.getPlayerGroup(playerId)
+      if (group) {
+        for (let i = 0; i < mods.loseSecretKey; i++) {
+          groupService.useSecretKey(group.id)
+        }
+      }
+    }
+  }
 
   return { success: true }
 }
