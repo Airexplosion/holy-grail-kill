@@ -9,6 +9,8 @@ import { useRoomStore } from '@/stores/room.store'
 import { useGmStore } from '@/stores/gm.store'
 import { useDeckBuildStore } from '@/stores/deck-build.store'
 import { useCombatStore } from '@/stores/combat.store'
+import { useGroupStore } from '@/stores/group.store'
+import { useDraftStore } from '@/stores/draft.store'
 import { S2C } from 'shared'
 import type { Socket } from 'socket.io-client'
 
@@ -240,6 +242,95 @@ export function useSocket() {
 
     socket.on(S2C.PLAYER_DISCONNECTED, (data: any) => {
       useRoomStore.getState().updatePlayer(data.playerId, { status: 'disconnected' })
+    })
+
+    // ── Group ready / auto-advance ──
+    socket.on(S2C.GROUP_READY_UPDATE, (data: any) => {
+      useGroupStore.getState().setGroupReady(data.groupId, data.ready)
+      if (data.readyGroupIds) {
+        useGroupStore.getState().setReadyStatus(data.readyGroupIds, data.aliveGroupCount)
+      }
+    })
+
+    socket.on(S2C.PHASE_AUTO_ADVANCED, (data: any) => {
+      useGameStore.getState().setPhase(data.phase)
+      useGameStore.getState().setTurnNumber(data.turnNumber)
+    })
+
+    socket.on(S2C.GROUP_LIST, (data: any) => {
+      if (data.groups) useGroupStore.getState().setGroups(data.groups)
+    })
+
+    socket.on(S2C.GROUP_STATE, (data: any) => {
+      if (data.group) useGroupStore.getState().setMyGroup(data.group)
+    })
+
+    socket.on(S2C.GROUP_ELIMINATED, (data: any) => {
+      useGroupStore.getState().updateGroupStatus(data.groupId, 'eliminated')
+    })
+
+    // ── Draft ──
+    socket.on(S2C.DRAFT_STATE_UPDATE, (data: any) => {
+      if (data.phase) useDraftStore.getState().setPhase(data.phase)
+      if (data.round != null) useDraftStore.getState().setRound(data.round, data.totalRounds || 10)
+      if (data.groupSelectionCounts) useDraftStore.getState().setGroupSelectionCounts(data.groupSelectionCounts)
+    })
+
+    socket.on(S2C.DRAFT_PACK_RECEIVED, (data: any) => {
+      if (data.skills) useDraftStore.getState().setCurrentPack(data.skills)
+    })
+
+    socket.on(S2C.DRAFT_PICK_MADE, (data: any) => {
+      if (data.skill) useDraftStore.getState().addSelectedSkill(data.skill)
+    })
+
+    socket.on(S2C.DRAFT_COMPLETE, (data: any) => {
+      useDraftStore.getState().setFinalized(true)
+    })
+
+    // ── Victory / Key / Spirit ──
+    socket.on(S2C.AKASHA_KEY_SPAWNED, (data: any) => {
+      useMapStore.getState().setAkashaKey(data.keyState || data)
+    })
+
+    socket.on(S2C.AKASHA_KEY_PICKED_UP, (data: any) => {
+      useMapStore.getState().setAkashaKey(data.keyState || data)
+    })
+
+    socket.on(S2C.AKASHA_KEY_PUT_DOWN, (data: any) => {
+      useMapStore.getState().setAkashaKey(data.keyState || data)
+    })
+
+    socket.on(S2C.AKASHA_KEY_CHANNEL_PROGRESS, (data: any) => {
+      useMapStore.getState().setAkashaKey(data)
+    })
+
+    socket.on(S2C.VICTORY, (data: any) => {
+      useGameStore.getState().setVictory(data)
+    })
+
+    socket.on(S2C.SPIRIT_SPAWNED, (data: any) => {
+      useMapStore.getState().addSpirit(data.spirit)
+    })
+
+    socket.on(S2C.SPIRIT_ABSORBED, (data: any) => {
+      useMapStore.getState().removeSpirit(data.spiritId)
+    })
+
+    socket.on(S2C.WAR_DECLARED, (data: any) => {
+      useGameStore.getState().setWarDeclaration(data)
+    })
+
+    socket.on(S2C.KILL_REWARD_PROMPT, (data: any) => {
+      useGameStore.getState().setKillRewardPrompt(data)
+    })
+
+    socket.on(S2C.ABILITY_REPLACE_PROMPT, (data: any) => {
+      useGameStore.getState().setAbilityReplacePrompt(data)
+    })
+
+    socket.on(S2C.GAME_STAGE_CHANGED, (data: any) => {
+      useGameStore.getState().setGameStage(data.stage)
     })
 
     // Error

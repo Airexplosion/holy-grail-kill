@@ -2,14 +2,18 @@ import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSocket } from '@/hooks/useSocket'
 import { useGameStore } from '@/stores/game.store'
+import { useGroupStore } from '@/stores/group.store'
 import { PhaseDisplay } from '@/components/game/PhaseDisplay'
 import { GameMap } from '@/components/map/GameMap'
 import { CardHand } from '@/components/cards/CardHand'
 import { ActionPanel } from '@/components/game/ActionPanel'
 import { DeckBuildPanel } from '@/components/deck-build/DeckBuildPanel'
 import { CombatPanel } from '@/components/combat/CombatPanel'
+import { GroupCombatPanel } from '@/components/combat/GroupCombatPanel'
 import { SkillBrowser } from '@/components/skills/SkillBrowser'
 import { ChatPanel } from '@/components/chat/ChatPanel'
+import { ReadyButton } from '@/components/game/ReadyButton'
+import { SecretKeyPanel } from '@/components/game/SecretKeyPanel'
 import { useMapStore } from '@/stores/map.store'
 import { useCombatStore } from '@/stores/combat.store'
 
@@ -19,6 +23,7 @@ export function PlayerPage() {
   const room = useAuthStore((s) => s.room)
   const leaveRoom = useAuthStore((s) => s.leaveRoom)
   const phase = useGameStore((s) => s.phase)
+  const myGroup = useGroupStore((s) => s.myGroup)
   const currentRegionId = useMapStore((s) => s.currentRegionId)
   const regions = useMapStore((s) => s.regions)
   const currentRegion = regions.find(r => r.id === currentRegionId)
@@ -34,24 +39,28 @@ export function PlayerPage() {
       {/* Top Bar */}
       <header className="bg-dark-700 border-b border-dark-400 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-bold text-primary-400">圣杯杀</h1>
+          <h1 className="text-lg font-bold text-primary-400">时缝之战</h1>
           <span className="text-dark-200 text-sm">
             房间: <span className="text-dark-50 font-mono">{room.code}</span>
           </span>
           <PhaseDisplay />
         </div>
         <div className="flex items-center gap-3">
+          <ReadyButton />
           {currentRegion && (
             <span className="text-xs bg-dark-600 px-2 py-1 rounded text-primary-300">
-              当前位置: {currentRegion.name}
+              {currentRegion.name}
             </span>
           )}
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: player.color }} />
             <span className="text-sm text-dark-100">{player.displayName}</span>
+            {myGroup && (
+              <span className="text-xs text-dark-300">({myGroup.name})</span>
+            )}
           </div>
-          <button onClick={() => setShowSkillBrowser(true)} className="btn-sm text-xs bg-dark-600 text-dark-200 hover:bg-dark-500">技能图鉴</button>
-          <button onClick={leaveRoom} className="btn-sm btn-secondary text-xs">返回大厅</button>
+          <button onClick={() => setShowSkillBrowser(true)} className="btn-sm text-xs bg-dark-600 text-dark-200 hover:bg-dark-500">技能</button>
+          <button onClick={leaveRoom} className="btn-sm btn-secondary text-xs">离开</button>
         </div>
       </header>
 
@@ -63,7 +72,7 @@ export function PlayerPage() {
         </div>
 
         {/* Right: Sidebar */}
-        <div className="w-80 flex flex-col gap-4 overflow-hidden">
+        <div className="w-80 flex flex-col gap-3 overflow-hidden">
           {/* Stats */}
           <div className="card flex-shrink-0">
             <h3 className="text-sm font-medium text-dark-200 mb-2">状态</h3>
@@ -91,10 +100,13 @@ export function PlayerPage() {
             </div>
           </div>
 
+          {/* Secret Key Panel */}
+          {myGroup && <SecretKeyPanel />}
+
           {/* Phase-specific panel */}
           {isCombat ? (
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <CombatPanel />
+              {myGroup ? <GroupCombatPanel /> : <CombatPanel />}
             </div>
           ) : isStandby ? (
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -109,9 +121,9 @@ export function PlayerPage() {
             </>
           )}
 
-          {/* Chat (hidden during combat to save space) */}
+          {/* Chat */}
           {!isCombat && (
-            <div className="card h-44 flex-shrink-0">
+            <div className="card h-40 flex-shrink-0">
               <ChatPanel />
             </div>
           )}

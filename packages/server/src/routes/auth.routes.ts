@@ -5,7 +5,7 @@ import { registerSchema, accountLoginSchema, joinRoomSchema } from 'shared'
 import * as accountService from '../services/account.service.js'
 import * as authService from '../services/auth.service.js'
 
-const router = Router()
+const router: Router = Router()
 
 // Register new account
 router.post('/register', validate(registerSchema), (req, res, next) => {

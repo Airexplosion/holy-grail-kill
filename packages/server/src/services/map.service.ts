@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid'
 import { eq, and, or } from 'drizzle-orm'
 import { getDb } from '../db/connection.js'
 import { regions, adjacencies, players, outposts } from '../db/schema.js'
-import type { MapState, PlayerPosition, OutpostMarker } from 'shared'
+import type { MapState, PlayerPosition, OutpostMarker, Adjacency } from 'shared'
 
 export function addRegion(roomId: string, name: string, posX = 0, posY = 0, metadata: Record<string, unknown> = {}) {
   const db = getDb()
@@ -92,7 +92,7 @@ export function getRoomAdjacencies(roomId: string) {
 
 export function getFullMapState(roomId: string): MapState {
   const regionList = getRoomRegions(roomId)
-  const adjacencyList = getRoomAdjacencies(roomId)
+  const adjacencyList = getRoomAdjacencies(roomId) as Adjacency[]
 
   const db = getDb()
   const allPlayers = db.select().from(players)
