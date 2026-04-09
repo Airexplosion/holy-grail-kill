@@ -3,8 +3,9 @@ module.exports = {
     {
       name: 'holy-grail-kill',
       cwd: './packages/server',
-      script: './node_modules/.bin/tsx',
-      args: 'src/index.ts',
+      script: 'src/index.ts',
+      interpreter: 'node',
+      interpreter_args: '--import tsx/esm',
       env_production: {
         NODE_ENV: 'production',
         PORT: 25656,
