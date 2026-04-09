@@ -325,3 +325,18 @@ export const adminStrikeLibrary = sqliteTable('admin_strike_library', {
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })
+
+// 地点大奖
+export const locationPrizes = sqliteTable('location_prizes', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  regionId: text('region_id').notNull().references(() => regions.id),
+  skillId: text('skill_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  claimed: integer('claimed', { mode: 'boolean' }).notNull().default(false),
+  claimedByGroupId: text('claimed_by_group_id'),
+  claimedAt: integer('claimed_at'),
+}, (table) => ({
+  roomRegionIdx: index('idx_location_prizes_room_region').on(table.roomId, table.regionId),
+}))

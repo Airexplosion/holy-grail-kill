@@ -11,8 +11,8 @@
  */
 
 import { v4 as uuid } from 'uuid'
-import type { StrikeColor, CombatTurnPhase, PlayChainEntry, DamageType } from 'shared'
-import { RESPONSE_MAP, MAX_CHAIN_DEPTH } from 'shared'
+import type { StrikeColor, CardColor, BaseStrikeColor, CombatTurnPhase, PlayChainEntry, DamageType } from 'shared'
+import { RESPONSE_MAP, MAX_CHAIN_DEPTH, SPECIAL_COLOR_RULES, STRIKE_COUNTER } from 'shared'
 import { calcStrikeDamage, type DamageResult } from './damage-calculator.js'
 
 // ── 类型定义 ──
@@ -193,67 +193,85 @@ export function initGroupCombat(
 
 // ── 出牌/响应/结算 ──
 
+/**
+ * 出牌攻击 — 支持全部颜色（基础三色 + 5种特殊颜色）
+ * @param declaredColor 万色牌声明的颜色（仅 rainbow 时需要）
+ */
 export function handleGroupPlayStrike(
   state: GroupCombatEngineState,
   groupId: string,
-  cardColor: StrikeColor,
+  cardColor: CardColor,
   targetGroupId: string,
-): { success: boolean; error?: string; needsResponse?: boolean } {
+  declaredColor?: BaseStrikeColor,
+): { success: boolean; error?: string; needsResponse?: boolean; responseDifficulty?: number } {
   if (state.phase !== 'play') return { success: false, error: '当前不是出牌阶段' }
   if (state.activeGroupId !== groupId) return { success: false, error: '不是你的回合' }
 
   const group = state.groupStates.get(groupId)
   if (!group) return { success: false, error: '组状态不存在' }
 
-  // 检查手牌
-  const count = group.hand.get(cardColor) || 0
-  if (count <= 0) return { success: false, error: `没有${cardColor}击` }
+  // 检查手牌（特殊颜色牌也在 hand 中以 CardColor 为 key）
+  const count = group.hand.get(cardColor as StrikeColor) || 0
+  if (count <= 0) return { success: false, error: `没有 ${cardColor} 牌` }
 
-  // 检查幻身动作数
   if (group.servant.actionsRemaining <= 0) return { success: false, error: '动作数不足' }
 
-  // 消耗手牌和MP
-  group.hand.set(cardColor, count - 1)
-  if (group.servant.mp > 0) {
-    group.servant.mp -= 1
+  // 万色牌必须声明颜色
+  if (cardColor === 'rainbow' && !declaredColor) {
+    return { success: false, error: '万色牌需声明颜色（红/蓝/绿）' }
   }
+
+  // 消耗手牌和MP
+  group.hand.set(cardColor as StrikeColor, count - 1)
+  if (group.servant.mp > 0) group.servant.mp -= 1
   group.servant.actionsRemaining -= 1
+
+  // 确定实际生效颜色（万色→声明色，其他→本身）
+  const effectiveColor: CardColor = cardColor === 'rainbow' ? declaredColor! : cardColor
 
   state.playChain.push({
     id: uuid(),
     playerId: group.servant.playerId,
     type: 'play',
-    cardColor,
+    cardColor: effectiveColor as StrikeColor,
     targetId: targetGroupId,
     timestamp: Date.now(),
   })
 
   state.events.push({
     type: 'play_strike', groupId,
-    description: `打出 ${cardColor}击`,
-    data: { cardColor, targetGroupId },
+    description: `打出 ${cardColor}${cardColor === 'rainbow' ? `(声明${declaredColor})` : ''}击`,
+    data: { cardColor, effectiveColor, declaredColor, targetGroupId },
     timestamp: Date.now(),
   })
+
+  // 计算响应难度（默认1，职业效果可修改）
+  let responseDifficulty = 1
+  const attackerRD = (group.servant.alive ? getFlag(group.servant, 'responseDifficulty') : 0) as number
+  responseDifficulty += attackerRD
 
   // 检查对手能否响应
   const target = state.groupStates.get(targetGroupId)
   if (!target) { state.phase = 'resolve'; return { success: true, needsResponse: false } }
 
-  const responseColor = RESPONSE_MAP[cardColor]
-  const targetCount = target.hand.get(responseColor) || 0
-  if (targetCount > 0) {
+  const canRespond = checkCanRespond(target, effectiveColor, responseDifficulty)
+  if (canRespond) {
     state.phase = 'respond'
-    return { success: true, needsResponse: true }
+    return { success: true, needsResponse: true, responseDifficulty }
   }
 
   state.phase = 'resolve'
-  return { success: true, needsResponse: false }
+  return { success: true, needsResponse: false, responseDifficulty }
 }
 
+/**
+ * 响应攻击 — 支持响应难度和特殊颜色
+ * @param responseCards 用于响应的牌颜色数组（长度需 = 响应难度）
+ */
 export function handleGroupRespond(
   state: GroupCombatEngineState,
   groupId: string,
-  cardColor?: StrikeColor,
+  responseCards?: CardColor[],
 ): { success: boolean; error?: string } {
   if (state.phase !== 'respond') return { success: false, error: '当前不是响应阶段' }
 
@@ -261,40 +279,39 @@ export function handleGroupRespond(
   if (!lastPlay?.targetId) return { success: false, error: '无出牌可响应' }
   if (lastPlay.targetId !== groupId) return { success: false, error: '你不是攻击目标' }
 
-  if (!cardColor) {
-    // pass 响应
+  if (!responseCards || responseCards.length === 0) {
     state.phase = 'resolve'
     state.events.push({ type: 'pass_respond', groupId, description: '选择不响应', timestamp: Date.now() })
     return { success: true }
   }
 
-  const attackColor = lastPlay.cardColor
+  const attackColor = lastPlay.cardColor as CardColor
   if (!attackColor) return { success: false, error: '无效攻击' }
-
-  const expectedResponse = RESPONSE_MAP[attackColor]
-  if (cardColor !== expectedResponse) {
-    return { success: false, error: `${attackColor}击只能用${expectedResponse}击响应` }
-  }
 
   const group = state.groupStates.get(groupId)
   if (!group) return { success: false, error: '组不存在' }
 
-  const count = group.hand.get(cardColor) || 0
-  if (count <= 0) return { success: false, error: `没有${cardColor}击可响应` }
+  // 验证响应牌是否合法
+  const validationError = validateResponseCards(attackColor, responseCards, group)
+  if (validationError) return { success: false, error: validationError }
 
-  group.hand.set(cardColor, count - 1)
+  // 消耗所有响应牌
+  for (const rc of responseCards) {
+    const count = group.hand.get(rc as StrikeColor) || 0
+    group.hand.set(rc as StrikeColor, Math.max(0, count - 1))
+  }
 
   state.playChain.push({
     id: uuid(),
     playerId: group.servant.playerId,
     type: 'respond',
-    cardColor,
+    cardColor: responseCards[0] as StrikeColor,
     timestamp: Date.now(),
   })
 
   state.events.push({
     type: 'respond_strike', groupId,
-    description: `用 ${cardColor}击 响应`,
+    description: `用 ${responseCards.join('+')} 响应`,
     timestamp: Date.now(),
   })
 
@@ -523,5 +540,91 @@ function findGroupByPlayerId(state: GroupCombatEngineState, playerId: string): s
   for (const [gid, gs] of state.groupStates) {
     if (gs.servant.playerId === playerId || gs.master.playerId === playerId) return gid
   }
+  return null
+}
+
+function getFlag(char: CharacterCombatState, flag: string): unknown {
+  // flags 不在 CharacterCombatState 上直接存在，用 any 兼容
+  return (char as any).flags?.get?.(flag) ?? 0
+}
+
+/**
+ * 检查防守方是否有足够的牌来响应（考虑颜色规则和响应难度）
+ */
+function checkCanRespond(
+  defender: GroupCombatState,
+  attackColor: CardColor,
+  responseDifficulty: number,
+): boolean {
+  const validResponseColors = getValidResponseColors(attackColor)
+  if (validResponseColors.length === 0) return false
+
+  // 计算防守方持有的可响应牌总数
+  let totalAvailable = 0
+  for (const rc of validResponseColors) {
+    totalAvailable += defender.hand.get(rc as StrikeColor) || 0
+  }
+
+  return totalAvailable >= responseDifficulty
+}
+
+/**
+ * 获取指定攻击颜色的合法响应颜色列表
+ */
+function getValidResponseColors(attackColor: CardColor): CardColor[] {
+  // 基础三色：按克制关系响应
+  if (attackColor === 'red' || attackColor === 'blue' || attackColor === 'green') {
+    return [STRIKE_COUNTER[attackColor]]
+  }
+
+  // 特殊颜色
+  switch (attackColor) {
+    case 'colorless':
+      // 无色可被任意颜色响应
+      return ['red', 'blue', 'green', 'colorless', 'rainbow', 'black', 'white']
+
+    case 'rainbow':
+      // 万色已声明为某基础色，按该色的克制响应
+      // 到达此处时 attackColor 应已被替换为声明色
+      return ['red', 'blue', 'green']
+
+    case 'black':
+      // 黑色只能被黑色或无色响应
+      return ['black', 'colorless']
+
+    case 'white':
+      // 白色可被黑色和无色以外的牌响应
+      return ['red', 'blue', 'green', 'rainbow', 'white']
+
+    case 'unknown':
+      // 颜色不明需要特殊响应模式（暂无标准响应）
+      return []
+
+    default:
+      return []
+  }
+}
+
+/**
+ * 验证响应牌是否合法
+ */
+function validateResponseCards(
+  attackColor: CardColor,
+  responseCards: CardColor[],
+  defender: GroupCombatState,
+): string | null {
+  const validColors = getValidResponseColors(attackColor)
+
+  for (const rc of responseCards) {
+    if (!validColors.includes(rc)) {
+      return `${rc} 不能响应 ${attackColor} 的攻击`
+    }
+    const available = defender.hand.get(rc as StrikeColor) || 0
+    const usedCount = responseCards.filter(c => c === rc).length
+    if (usedCount > available) {
+      return `${rc} 牌不足`
+    }
+  }
+
   return null
 }

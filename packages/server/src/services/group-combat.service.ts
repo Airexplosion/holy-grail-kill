@@ -4,7 +4,7 @@
  */
 
 import { eq, and } from 'drizzle-orm'
-import type { StrikeColor, WarResponse } from 'shared'
+import type { StrikeColor, CardColor, WarResponse } from 'shared'
 import { getDb } from '../db/connection.js'
 import { deckBuilds } from '../db/schema.js'
 import * as groupService from './group.service.js'
@@ -157,24 +157,25 @@ export function getRoomActiveCombats(roomId: string): GroupCombatEngineState[] {
 export function playStrike(
   combatId: string,
   groupId: string,
-  cardColor: StrikeColor,
+  cardColor: CardColor,
   targetGroupId: string,
+  declaredColor?: 'red' | 'blue' | 'green',
 ) {
   const state = activeCombats.get(combatId)
   if (!state) return { success: false, error: '战斗不存在' }
 
-  const result = handleGroupPlayStrike(state, groupId, cardColor, targetGroupId)
+  const result = handleGroupPlayStrike(state, groupId, cardColor, targetGroupId, declaredColor)
   return { ...result, snapshot: getGroupCombatSnapshot(state) }
 }
 
 /**
  * 处理响应
  */
-export function respond(combatId: string, groupId: string, cardColor?: StrikeColor) {
+export function respond(combatId: string, groupId: string, responseCards?: CardColor[]) {
   const state = activeCombats.get(combatId)
   if (!state) return { success: false, error: '战斗不存在' }
 
-  const result = handleGroupRespond(state, groupId, cardColor)
+  const result = handleGroupRespond(state, groupId, responseCards)
 
   // 如果进入 resolve 阶段，自动结算
   if (state.phase === 'resolve') {

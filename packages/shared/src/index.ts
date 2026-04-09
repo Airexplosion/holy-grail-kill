@@ -25,6 +25,7 @@ export type {
 } from './types/skill.js'
 export { SKILL_TYPE_LABELS, SKILL_CLASS_LABELS, SKILL_RARITY_LABELS, SKILL_SLOTS } from './types/skill.js'
 
+export type { LocationPrize } from './types/location-prize.js'
 export type { ChatMessage } from './types/chat.js'
 export type { OperationLog, LogCategory } from './types/log.js'
 export { C2S, S2C } from './types/events.js'

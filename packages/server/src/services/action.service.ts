@@ -8,6 +8,9 @@ import * as mapService from './map.service.js'
 import * as outpostService from './outpost.service.js'
 import { canTraverse, getAdjacentRegions } from '../engine/visibility.js'
 import type { ActionType, ActionResult, Adjacency } from 'shared'
+import * as akashaKeyService from './akasha-key.service.js'
+import * as spiritService from './spirit.service.js'
+import * as groupService from './group.service.js'
 
 export function submitAction(
   roomId: string,
@@ -47,31 +50,9 @@ export function submitAction(
     submittedAt: Date.now(),
   }).run()
 
-  // Handle bound player
-  if (player.boundToPlayerId) {
-    const boundExisting = db.select().from(actionQueue)
-      .where(and(
-        eq(actionQueue.roomId, roomId),
-        eq(actionQueue.playerId, player.boundToPlayerId),
-        eq(actionQueue.turnNumber, room.turnNumber),
-        eq(actionQueue.actionPointIndex, room.currentActionPointIndex),
-      ))
-      .get()
-
-    if (!boundExisting) {
-      db.insert(actionQueue).values({
-        id: uuid(),
-        roomId,
-        playerId: player.boundToPlayerId,
-        turnNumber: room.turnNumber,
-        actionPointIndex: room.currentActionPointIndex,
-        actionType,
-        payload: JSON.stringify(payload),
-        status: 'pending',
-        submittedAt: Date.now(),
-      }).run()
-    }
-  }
+  // 分头行动：不再自动复制行动给绑定玩家
+  // Master 和 Servant 可以独立提交不同的行动
+  // 但共享行动点（由组级别管理）
 
   return { id, actionType, payload }
 }
@@ -234,20 +215,64 @@ function resolveOneAction(
     }
 
     case 'use_ability':
-      // TODO: 调用技能执行引擎
-      return r(true, `使用能力: ${payload.abilityId}`)
+      // 技能使用在战斗外由行动点触发
+      // 具体效果由 effect-pipeline 执行（需要技能ID查找效果链）
+      return r(true, `使用能力: ${payload.abilityId}`, { abilityId: payload.abilityId })
 
-    case 'absorb_spirit':
-      // TODO: 调用残灵吸收服务（连续3AP追踪）
-      return r(true, '残灵吸收进行中')
+    case 'absorb_spirit': {
+      const group = groupService.getPlayerGroup(playerId)
+      if (!group) return r(false, '你不属于任何组')
 
-    case 'obtain_key':
-      // TODO: 调用阿克夏之钥服务
-      return r(true, payload.action === 'pick_up' ? '携带钥匙' : '放置钥匙')
+      // 检查是否是继续吸收
+      const progress = spiritService.continueAbsorption(roomId, group.id)
+      if (progress) {
+        if (progress.complete) {
+          return r(true, '残灵吸收完成！选择提升的属性', { spiritId: progress.spiritId, complete: true })
+        }
+        return r(true, `残灵吸收中 (${progress.apSpent}/3)`, { apSpent: progress.apSpent })
+      }
 
-    case 'channel_magic':
-      // TODO: 调用注入魔力服务
-      return r(true, '注入魔力')
+      // 开始新的吸收
+      if (!payload.spiritId || !player.regionId) return r(false, '需要指定残灵')
+      const spirit = spiritService.getSpirit(roomId, payload.spiritId)
+      if (!spirit || spirit.absorbed) return r(false, '残灵不存在或已被吸收')
+      if (spirit.regionId !== player.regionId) return r(false, '残灵不在你的区域')
+
+      spiritService.startAbsorption(roomId, group.id, payload.spiritId, player.regionId)
+      return r(true, '开始残灵吸收 (1/3)', { apSpent: 1 })
+    }
+
+    case 'obtain_key': {
+      const group = groupService.getPlayerGroup(playerId)
+      if (!group) return r(false, '你不属于任何组')
+
+      if (payload.action === 'pick_up') {
+        if (!player.regionId) return r(false, '你不在任何区域')
+        const pickResult = akashaKeyService.pickUpKey(roomId, group.id, player.regionId)
+        if (!pickResult.success) return r(false, pickResult.error!)
+        return r(true, '携带阿克夏之钥')
+      } else {
+        if (!player.regionId) return r(false, '你不在任何区域')
+        const putResult = akashaKeyService.putDownKey(roomId, group.id, player.regionId)
+        if (!putResult.success) return r(false, putResult.error!)
+        return r(true, '放置阿克夏之钥')
+      }
+    }
+
+    case 'channel_magic': {
+      const group = groupService.getPlayerGroup(playerId)
+      if (!group) return r(false, '你不属于任何组')
+
+      const channelResult = akashaKeyService.channelMagic(roomId, group.id)
+      if (!channelResult.success) return r(false, channelResult.error!)
+
+      if (channelResult.victory) {
+        return r(true, '许愿完成！获得胜利！', { victory: true, progress: channelResult.progress })
+      }
+      return r(true, `注入魔力 (${channelResult.progress}/${channelResult.required})`, {
+        progress: channelResult.progress, required: channelResult.required,
+      })
+    }
 
     case 'declare_war':
       // 宣战由 encounter-engine 处理，此处仅记录
