@@ -290,11 +290,47 @@ export function useSocket() {
 
     // ── Victory / Key / Spirit ──
     socket.on(S2C.AKASHA_KEY_SPAWNED, (data: any) => {
-      // TODO: update map store with key location
+      useMapStore.getState().setAkashaKey(data.keyState || data)
+    })
+
+    socket.on(S2C.AKASHA_KEY_PICKED_UP, (data: any) => {
+      useMapStore.getState().setAkashaKey(data.keyState || data)
+    })
+
+    socket.on(S2C.AKASHA_KEY_PUT_DOWN, (data: any) => {
+      useMapStore.getState().setAkashaKey(data.keyState || data)
+    })
+
+    socket.on(S2C.AKASHA_KEY_CHANNEL_PROGRESS, (data: any) => {
+      useMapStore.getState().setAkashaKey(data)
     })
 
     socket.on(S2C.VICTORY, (data: any) => {
-      // TODO: show victory screen
+      useGameStore.getState().setVictory(data)
+    })
+
+    socket.on(S2C.SPIRIT_SPAWNED, (data: any) => {
+      useMapStore.getState().addSpirit(data.spirit)
+    })
+
+    socket.on(S2C.SPIRIT_ABSORBED, (data: any) => {
+      useMapStore.getState().removeSpirit(data.spiritId)
+    })
+
+    socket.on(S2C.WAR_DECLARED, (data: any) => {
+      useGameStore.getState().setWarDeclaration(data)
+    })
+
+    socket.on(S2C.KILL_REWARD_PROMPT, (data: any) => {
+      useGameStore.getState().setKillRewardPrompt(data)
+    })
+
+    socket.on(S2C.ABILITY_REPLACE_PROMPT, (data: any) => {
+      useGameStore.getState().setAbilityReplacePrompt(data)
+    })
+
+    socket.on(S2C.GAME_STAGE_CHANGED, (data: any) => {
+      useGameStore.getState().setGameStage(data.stage)
     })
 
     // Error

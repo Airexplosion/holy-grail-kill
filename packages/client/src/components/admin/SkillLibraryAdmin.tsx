@@ -30,6 +30,11 @@ export function SkillLibraryAdmin() {
     load()
   }
 
+  const handleToggleDraft = async (id: string, draftReady: boolean) => {
+    await api.patch('/admin/skills/' + id + '/draft', { draftReady }, { useAccountToken: true })
+    load()
+  }
+
   const handleSeed = async () => {
     await api.post('/admin/skills/seed', {}, { useAccountToken: true })
     load()
@@ -94,7 +99,11 @@ export function SkillLibraryAdmin() {
               </span>
               <span className="text-[10px] text-dark-400">{SKILL_TYPE_LABELS[skill.type]}</span>
               {skill.source === 'constant' && <span className="text-[10px] text-dark-500">(默认)</span>}
+              {(skill as any).draftReady && <span className="text-[10px] px-1.5 rounded bg-green-900/50 text-green-300">轮抓</span>}
               <div className="ml-auto flex gap-1">
+                <button onClick={() => handleToggleDraft(skill.id, !(skill as any).draftReady)} className={cn('text-[10px] px-2 py-0.5 rounded', (skill as any).draftReady ? 'bg-green-900/30 text-green-400' : 'bg-dark-600 text-dark-400')}>
+                  {(skill as any).draftReady ? '轮抓✓' : '入池'}
+                </button>
                 <button onClick={() => handleToggle(skill.id, !skill.enabled)} className={cn('text-[10px] px-2 py-0.5 rounded', skill.enabled ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400')}>
                   {skill.enabled ? '启用' : '禁用'}
                 </button>

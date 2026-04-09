@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
+import { useGameStore } from '@/stores/game.store'
 import { LoginPage } from './LoginPage'
 import { LobbyPage } from './LobbyPage'
 import { PlayerPage } from './PlayerPage'
@@ -7,6 +8,7 @@ import { GMPage } from './GMPage'
 import { AdminPage } from './AdminPage'
 import { CharacterCreatePage } from './CharacterCreatePage'
 import { DraftPage } from './DraftPage'
+import type { GameStage } from 'shared'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
@@ -34,10 +36,25 @@ function RequireGame({ children, requireGm = false }: { children: React.ReactNod
   return <>{children}</>
 }
 
+/** 根据 GameStage 决定游戏内默认路由 */
+function getGameRoute(gameStage: GameStage, isGm: boolean): string {
+  if (isGm) return '/gm'
+  switch (gameStage) {
+    case 'character_create': return '/character-create'
+    case 'draft': return '/draft'
+    case 'deck_build':
+    case 'playing': return '/game'
+    default: return '/game'
+  }
+}
+
 export function AppRouter() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isInGame = useAuthStore((s) => s.isInGame)
   const player = useAuthStore((s) => s.player)
+  const gameStage = useGameStore((s) => s.gameStage)
+
+  const gameRoute = isInGame ? getGameRoute(gameStage, !!player?.isGm) : '/lobby'
 
   return (
     <BrowserRouter>
@@ -46,7 +63,7 @@ export function AppRouter() {
           path="/login"
           element={
             isLoggedIn
-              ? <Navigate to={isInGame ? (player?.isGm ? '/gm' : '/game') : '/lobby'} replace />
+              ? <Navigate to={isInGame ? gameRoute : '/lobby'} replace />
               : <LoginPage />
           }
         />
@@ -54,7 +71,7 @@ export function AppRouter() {
           path="/lobby"
           element={
             isInGame
-              ? <Navigate to={player?.isGm ? '/gm' : '/game'} replace />
+              ? <Navigate to={gameRoute} replace />
               : <RequireAuth><LobbyPage /></RequireAuth>
           }
         />
@@ -68,9 +85,7 @@ export function AppRouter() {
         />
         <Route
           path="/admin"
-          element={
-            <RequireAdmin><AdminPage /></RequireAdmin>
-          }
+          element={<RequireAdmin><AdminPage /></RequireAdmin>}
         />
         <Route
           path="/character-create"
