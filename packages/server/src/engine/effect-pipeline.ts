@@ -88,5 +88,6 @@ export function getRegisteredEffectTypes(): string[] {
   return [...registry.keys()]
 }
 
-// 加载所有效果模块（side-effect imports）
-import './effects/index.js'
+// 效果模块在 server 入口 (index.ts) 中加载：
+// import './engine/effects/index.js'
+// 不在此处 import 以避免 ESM 循环依赖

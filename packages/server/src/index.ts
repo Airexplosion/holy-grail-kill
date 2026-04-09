@@ -1,3 +1,6 @@
+// 效果模块必须在其他引擎模块之前加载（注册 effectType handlers）
+import './engine/effects/index.js'
+
 import express from 'express'
 import { createServer } from 'http'
 import cors from 'cors'
