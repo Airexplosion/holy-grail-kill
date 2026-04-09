@@ -52,6 +52,9 @@ export function GroupFormationPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-blue-400">时缝之战</h1>
           <p className="text-gray-400 mt-1">房间: {room.code} — 组队阶段</p>
+          <a href="/skill-catalog" className="inline-block mt-2 px-4 py-1.5 text-sm rounded bg-gray-700 hover:bg-gray-600 transition-colors">
+            技能图鉴 / 预组规划
+          </a>
         </div>
 
         {/* 已组成的组 */}
