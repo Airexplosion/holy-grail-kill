@@ -61,12 +61,36 @@ export const players = sqliteTable('players', {
   status: text('status').notNull().default('connected'),
   cardMenuUnlocked: integer('card_menu_unlocked', { mode: 'boolean' }).notNull().default(false),
   color: text('color').notNull().default('#3B82F6'),
+  // ── 双角色系统 ──
+  role: text('role'),                    // 'master' | 'servant' | null
+  groupId: text('group_id'),
+  // 幻身五维
+  str: text('str'),                      // AttributeRank
+  end: text('end_rank'),                 // "end" is reserved in some SQL dialects
+  agi: text('agi'),
+  mag: text('mag'),
+  luk: text('luk'),
+  classId: text('class_id'),
+  // 篡者属性
+  actionPower: text('action_power'),
+  archetypeId: text('archetype_id'),
+  tacticalStyle: text('tactical_style'),
+  tacticalStyleUsed: integer('tactical_style_used', { mode: 'boolean' }).notNull().default(false),
+  // 战斗属性
+  armorClass: integer('armor_class').notNull().default(0),
+  baseDamage: integer('base_damage').notNull().default(0),
+  actions: integer('actions').notNull().default(0),
+  actionsMax: integer('actions_max').notNull().default(0),
+  handSizeMax: integer('hand_size_max').notNull().default(5),
+  extraMp: integer('extra_mp').notNull().default(0),
+  extraMpMax: integer('extra_mp_max').notNull().default(0),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 }, (table) => ({
   roomIdx: index('idx_players_room').on(table.roomId),
   regionIdx: index('idx_players_region').on(table.regionId),
   accountRoomIdx: uniqueIndex('idx_players_account_room').on(table.accountName, table.roomId),
+  groupIdx: index('idx_players_group').on(table.groupId),
 }))
 
 export const cards = sqliteTable('cards', {

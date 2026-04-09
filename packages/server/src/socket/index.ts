@@ -18,6 +18,7 @@ import { filterMapForPlayer, buildPlayerSelfView } from '../engine/visibility.js
 import { registerDeckBuildHandlers } from './deck-build-handlers.js'
 import { registerCombatHandlers } from './combat-handlers.js'
 import { registerGroupHandlers } from './group-handlers.js'
+import { registerCharacterHandlers } from './character-handlers.js'
 import { z } from 'zod'
 import {
   addRegionSchema, updateRegionSchema, setAdjacencySchema, removeAdjacencySchema, movePlayerSchema,
@@ -93,6 +94,7 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     registerChatHandlers(socket, roomKey)
     registerGmHandlers(socket, roomKey)
     registerGroupHandlers(socket, roomKey, io!, emitError)
+    registerCharacterHandlers(socket, roomKey, io!, emitError)
     registerDeckBuildHandlers(socket, roomKey, io!, requireGm, emitError)
     registerCombatHandlers(socket, roomKey, io!, requireGm, emitError)
 

@@ -107,6 +107,14 @@ export { submitDeckBuildSchema, lockDeckBuildSchema } from './schemas/deck-build
 export type { SubmitDeckBuildInput } from './schemas/deck-build.schema.js'
 export { combatPlayStrikeSchema, combatUseSkillSchema, combatRespondSchema, combatPassSchema, combatGmStartSchema } from './schemas/combat.schema.js'
 export { shareDeckBuildSchema, getSharedBuildSchema } from './schemas/share.schema.js'
+export {
+  allocateServantAttributesSchema, allocateMasterAttributesSchema,
+  selectClassSchema, selectArchetypeSchema, selectTacticalStyleSchema,
+} from './schemas/character.schema.js'
+export type {
+  AllocateServantAttributesInput, AllocateMasterAttributesInput,
+  SelectClassInput, SelectArchetypeInput, SelectTacticalStyleInput,
+} from './schemas/character.schema.js'
 
 // ── Constants ──
 
