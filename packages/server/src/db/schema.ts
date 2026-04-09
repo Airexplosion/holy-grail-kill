@@ -297,6 +297,18 @@ export const adminSkillLibrary = sqliteTable('admin_skill_library', {
   effects: text('effects').notNull().default('[]'),
   tags: text('tags').notNull().default('[]'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /** 技能分类：base=基础技能, link=连携技能 */
+  skillCategory: text('skill_category').notNull().default('base'),
+  /** 是否已审核可进入轮抓池 */
+  draftReady: integer('draft_ready', { mode: 'boolean' }).notNull().default(false),
+  /** 技能来源（出自哪个神话/英灵） */
+  sourceName: text('source_name'),
+  /** 是否高稀有度（轮抓分级用） */
+  isHighRarity: integer('is_high_rarity', { mode: 'boolean' }).notNull().default(false),
+  /** 卡牌数量（卡牌类技能） */
+  cardCount: integer('card_count'),
+  /** 颜色（卡牌类技能的颜色） */
+  skillColor: text('skill_color'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })

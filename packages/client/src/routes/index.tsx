@@ -6,6 +6,7 @@ import { PlayerPage } from './PlayerPage'
 import { GMPage } from './GMPage'
 import { AdminPage } from './AdminPage'
 import { CharacterCreatePage } from './CharacterCreatePage'
+import { DraftPage } from './DraftPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
@@ -74,6 +75,10 @@ export function AppRouter() {
         <Route
           path="/character-create"
           element={<RequireGame><CharacterCreatePage /></RequireGame>}
+        />
+        <Route
+          path="/draft"
+          element={<RequireGame><DraftPage /></RequireGame>}
         />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
