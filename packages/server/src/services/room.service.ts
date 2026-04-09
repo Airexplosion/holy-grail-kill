@@ -71,6 +71,7 @@ export function createRoom(input: CreateRoomInput) {
     roomId,
     isGm: true,
     accountName: input.accountName,
+    accountId: '',
   })
 
   return { room, gmPlayer, token }

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-圣杯杀 (Holy Grail Kill) - 一个实时多人桌游管理系统。支持 7-28 名玩家 + 1 名 GM (Game Master) 在同一房间中进行游戏。
+圣杯杀 (Holy Grail Kill) - 实时多人桌游管理系统。7-28 名玩家 + 1 名 GM 在同一房间中进行游戏。
 
 ## Tech Stack
 
@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Map Rendering**: @xyflow/react (React Flow)
 - **Auth**: JWT (jsonwebtoken)
 - **Validation**: Zod (shared schemas between client/server)
+- **Testing**: Vitest (both server and client)
 
 ## Commands
 
@@ -25,146 +26,169 @@ pnpm install
 # Must build shared first (other packages depend on it)
 pnpm run build:shared
 
-# Development (runs both server and client)
+# Development (runs both server and client concurrently)
 pnpm run dev
 
 # Run individually
 pnpm run dev:server    # Express + Socket.IO on :3001
 pnpm run dev:client    # Vite on :5173
 
-# Build all
+# Build all (shared → server → client)
 pnpm run build
 
 # Tests
-pnpm run test          # All packages
-pnpm run test:server   # Server only
-pnpm run test:client   # Client only
+pnpm run test                          # All packages
+pnpm run test:server                   # Server only
+pnpm run test:client                   # Client only
+pnpm --filter server run test:watch    # Server watch mode
+pnpm --filter client run test:watch    # Client watch mode
+
+# Lint
+pnpm run lint                          # All packages
+pnpm --filter client run lint          # Client ESLint only
+
+# Database (from packages/server/)
+pnpm run db:generate    # Generate Drizzle migrations
+pnpm run db:migrate     # Run migrations
+pnpm run db:studio      # Drizzle Studio GUI
 ```
+
+## Environment Setup
+
+Copy `.env.example` to `.env` at the repo root:
+
+```env
+PORT=3001                                # Server port (dev default: 3001, prod: 25656)
+JWT_SECRET=change-me-to-a-random-string  # JWT signing key
+DB_PATH=./data/game.db                   # SQLite database path
+CLIENT_URL=http://localhost:5173         # Client origin for CORS
+```
+
+Config loaded in `packages/server/src/config/env.ts` — all vars have dev defaults.
 
 ## Architecture
 
 ### Package Structure
 
-- `packages/shared/` - TypeScript types, Zod schemas, constants. **Must be built before other packages.** Exports all types/schemas from `src/index.ts`.
-- `packages/server/` - Express REST API + Socket.IO real-time server. Uses in-memory game state with SQLite persistence.
-- `packages/client/` - React SPA. Player view (`/game`) and GM console (`/gm`) are separate routes.
+- `packages/shared/` — Types, Zod schemas, constants. **Must be built before other packages.** Barrel export from `src/index.ts`. No runtime logic — purely types/constants/validation.
+- `packages/server/` — Express REST + Socket.IO real-time server. In-memory game state with SQLite persistence.
+- `packages/client/` — React SPA. Player view (`/game`) and GM console (`/gm`) are separate routes.
+
+### Server Architecture
+
+**Entry point** (`packages/server/src/index.ts`): Express app → CORS → JSON → REST routes → DB init → Socket.IO setup → listen.
+
+**REST Routes** (`routes/`):
+- `/api/auth` — Account register/login, room join (returns JWT)
+- `/api/rooms` — Room CRUD
+- `/api/admin` — Skill library admin, strike card admin
+- `/api/health` — Health check
+
+**Socket.IO Handlers** (`socket/`):
+- `socket/index.ts` — Main handler hub: room, game, map, card, skill, action, chat, log events
+- `socket/deck-build-handlers.ts` — 备战 deck building events
+- `socket/combat-handlers.ts` — 战斗 combat events
+- `socket/middleware.ts` — JWT auth middleware for socket connections
+
+**Services Layer** (`services/`): Business logic. Each service manages one domain — game, player, card, combat, deck-build, action, map, outpost, chat, skill-library, etc. Services call Drizzle ORM for DB access.
+
+**Engine** (`engine/`): Core game mechanics:
+- `combat-engine.ts` — Combat state machine: init, turn order, chain resolution, round management
+- `skill-executor.ts` — Skill usability checks, execution, passive triggers, cooldown management
+- `effect-pipeline.ts` — Extensible effect registry (strategy pattern). `registerEffect(effectType, handler)` for each effect type
+- `phase-machine.ts` — Phase state machine: 回合开始→准备→行动→备战→战斗→回合结束 (linear, GM-only advance)
+- `visibility.ts` — Filters game state per player. Players see: same-region players, own HP/MP/hand. GM sees everything, is never rendered on map
+- `deck-manager.ts` — Card deck operations
 
 ### Key Architectural Patterns
 
 **Single Source of Truth**: Game state lives in memory on the server. SQLite is secondary persistence (periodic snapshots + granular writes). Client state is a filtered projection.
 
-**Visibility Engine**: All Socket.IO emissions pass through a visibility filter before reaching clients. Players only see: same-region players, own HP/MP/hand. GM sees everything. GM is never rendered on the map.
+**Visibility Engine**: All Socket.IO emissions pass through `visibility.ts` before reaching clients.
 
-**Action Resolution**: Action phase uses async-submit/sync-execute model. Players submit actions independently → server collects all → GM approves → deterministic batch resolution (moves → scouts → outposts → consumes).
+**Action Resolution**: Action phase uses async-submit/sync-execute model. Players submit independently → server collects → GM approves → deterministic batch resolution (moves → scouts → outposts → consumes).
 
-**Phase State Machine**: Strict linear progression: 回合开始 → 准备 → 行动 → 备战 → 战斗 → 回合结束. Only GM can advance.
+**Combat Flow**: GM initiates → `initCombat()` creates turn order (sorted by priority) → each turn: play strike / use skill / pass → opponent responds → chain resolves → round ends: AP refreshes, MP doesn't, cooldowns -1.
 
-### Socket.IO Room Strategy
+### Socket.IO Rooms
 
 - `room:{roomCode}` — all members
 - `room:{roomCode}:region:{regionId}` — location-based chat
 - `room:{roomCode}:gm` — GM-only events
 
+### Socket.IO Event Constants
+
+All events defined in `shared/src/types/events.ts`:
+- `C2S.*` — client→server (e.g., `C2S.COMBAT_PLAY_STRIKE`)
+- `S2C.*` — server→client (e.g., `S2C.COMBAT_STATE_UPDATE`)
+
 ### Database
 
-SQLite with WAL mode. Schema in `packages/server/src/db/schema.ts`. Tables are auto-created on first connection via `connection.ts`. Key tables: rooms, players, cards, regions, adjacencies, outposts, action_queue, operation_logs, chat_messages, game_snapshots, skill_templates, player_skills.
+SQLite with WAL mode. Schema in `packages/server/src/db/schema.ts`. Tables are auto-created on first connection via `connection.ts`. Key tables: accounts, rooms, players, cards, regions, adjacencies, outposts, actionQueue, operationLogs, chatMessages, gameSnapshots, skillTemplates, playerSkills, deckBuilds, knownOutposts.
 
-### Frontend State
+### Frontend Architecture
 
-Zustand stores (immutable updates only): `auth.store`, `game.store`, `map.store`, `card.store`, `chat.store`. Socket events are wired in `hooks/useSocket.ts`.
+**Routes** (`routes/`):
+- `/login` — Account register/login
+- `/lobby` — Room creation/join, player list
+- `/game` — Player gameplay (map, cards, actions, combat)
+- `/gm` — GM console (map editor, player/card/combat management, phase control, logs)
+- `/admin` — Admin panel (skill library editor)
+
+Route guards: `RequireAuth`, `RequireAdmin`, `RequireGame` (with optional `requireGm`).
+
+**Zustand Stores** (`stores/`): Immutable updates only. One store per domain: `auth`, `game`, `room`, `map`, `card`, `combat`, `deck-build`, `chat`, `gm`.
+
+**Socket Integration**: `hooks/useSocket.ts` centralizes all S2C event listeners. Each listener updates its corresponding Zustand store.
+
+**State Flow**: REST API calls for auth/room ops → JWT stored in localStorage → Socket.IO for real-time game events → Zustand stores updated via socket listeners → React re-renders.
+
+**Path alias**: `@/` maps to `packages/client/src/`.
+
+**Dev proxy**: Vite proxies `/api` and `/socket.io` to `http://localhost:3001`.
 
 ### Extensibility Points
 
-- **Card skills**: `Card.metadata.skillEffect` + `CardType` field
-- **Player skills**: `player_skills` table + `skill_templates` table + `SkillMetadata.effects[]`
-- **Skill executor**: Strategy pattern — register handlers per effect type in `engine/skill-executor.ts`
-- **Region metadata**: JSON field for future region-specific rules
+**Adding a new socket event**:
+1. Add constant to `C2S`/`S2C` in `shared/src/types/events.ts`
+2. Add Zod schema in `shared/src/schemas/`
+3. Register handler in the appropriate `socket/*.ts` file
+4. Add listener in client `hooks/useSocket.ts`
 
-## 备战 & 战斗系统
+**Adding a new skill effect**:
+1. Register handler via `registerEffect(effectType, handler)` in `engine/effect-pipeline.ts`
+2. Add skill entry using new effect in `shared/src/constants/skill-library.ts`
 
-### 击牌系统（三色克制）
+**Adding a new REST endpoint**:
+1. Create/edit route file in `server/src/routes/`
+2. Register in `server/src/index.ts`
+3. Add Zod schema for validation in `shared/src/schemas/`
 
-三种击牌，每种既能攻击也能防御，石头剪刀布克制：
+## Game Systems Reference
 
-| 攻击 | 被谁响应 | 基础伤害 |
-|------|----------|----------|
-| 红击 | 蓝击响应 | 10 |
-| 蓝击 | 绿击响应 | 10 |
-| 绿击 | 红击响应 | 10 |
+### 击牌系统 (Strike Cards)
 
-- 组卡总计 24 张，红蓝绿任意比例
-- 克制关系常量：`STRIKE_COUNTER` / `RESPONSE_MAP`
-- 击牌模板：`packages/shared/src/constants/strike-cards.ts`
+Rock-paper-scissors: 红击→蓝击响应, 蓝击→绿击响应, 绿击→红击响应. Constants: `STRIKE_COUNTER`, `RESPONSE_MAP`. Templates: `shared/src/constants/strike-cards.ts`. 24 cards per player deck.
 
-### 技能系统
+### 技能系统 (Skills)
 
-选 4 个 A 级 + 2 个 B 级技能。每个技能有 `普通/稀有` 稀有度标签（用于轮抓分级）。
+4 A-class + 2 B-class skills per player. Each skill has `effects: SkillEffectDef[]` — modular effect chain. 19+ effect types registered in `effect-pipeline.ts`. Full skill library: `shared/src/constants/skill-library.ts`. Skills have `rarity` (普通/稀有) for draft phase tiering.
 
-**技能效果接口（模块化）**：每个技能通过 `effects: SkillEffectDef[]` 定义效果链，每个效果是 `{ effectType: string, params: Record<string, unknown> }` 标准格式。新增技能只需在 `skill-library.ts` 追加条目。
+### 轮抓阶段 (Draft — placeholder)
 
-**已实现的 effectType**：
-- `damage` — 伤害（params: value, pierceShield?, aoe?）
-- `heal` — 治疗（params: value, target?）
-- `shield` — 护盾（params: value, duration?）
-- `draw` — 抽牌（params: count, target?, fillTo?, condition?）
-- `discard` — 弃牌（params: count, target?, choice?）
-- `vision` — 侦查信息（params: reveal[]）
-- `move` — 移动（params: type）
-- `stealth` — 隐匿（params: duration）
-- `reflect` — 反弹伤害（params: value）
-- `removeShield` — 移除护盾
-- `damageReduction` — 减伤（params: value, condition?）
-- `damageBonus` — 伤害加成（params: value, condition?）
-- `modifyPriority` — 出牌优先级修改（params: value）
-- `mpReduction` — MP消耗减少（params: value, minCost?）
-- `retrieveDiscard` — 弃牌堆回收（params: count, random?）
-
-**技能库**：`packages/shared/src/constants/skill-library.ts`
-
-**A 级技能 (12)：**
-| ID | 名称 | 稀有度 | 类型 | 效果简述 |
-|----|------|--------|------|----------|
-| a01 | 圣剑一闪 | 普通 | 主动 | 2MP, 25伤, 无视5护盾 |
-| a02 | 守护结界 | 普通 | 触发 | 受伤时抵消15伤, CD2 |
-| a03 | 生命汲取 | 普通 | 主动 | 3MP, 15伤+吸血 |
-| a04 | 战术侦查 | 普通 | 主动 | 1MP, 查看目标+抽1牌 |
-| a05 | 迅捷突袭 | 稀有 | 主动 | 2MP, 移动+20伤, CD1 |
-| a06 | 神圣护佑 | 普通 | 主动 | 3MP, 30护盾2回合, CD2 |
-| a07 | 命运抽签 | 稀有 | 主动 | 1MP, 抽3弃1, CD1 |
-| a08 | 破甲一击 | 普通 | 主动 | 2MP, 15伤+清护盾 |
-| a09 | 烽火连天 | 稀有 | 主动 | 4MP, 区域AOE 15伤, CD2 |
-| a10 | 战地救护 | 普通 | 主动 | 2MP, 回复30HP |
-| a11 | 暗影潜行 | 稀有 | 触发 | 移动后隐匿, CD3 |
-| a12 | 反击风暴 | 普通 | 触发 | 受击反弹10伤, CD1 |
-
-**B 级技能 (8)：**
-| ID | 名称 | 稀有度 | 类型 | 效果简述 |
-|----|------|--------|------|----------|
-| b01 | 坚韧意志 | 普通 | 被动 | HP<30%时减伤5 |
-| b02 | 资源回收 | 普通 | 触发 | 每回合从弃牌堆回收1张 |
-| b03 | 先手之利 | 稀有 | 被动 | 出牌优先级+1 |
-| b04 | 补给线 | 普通 | 触发 | 回合结束手牌<3补至3 |
-| b05 | 地利之势 | 普通 | 被动 | 己方阵地区域+5伤 |
-| b06 | 鹰眼洞察 | 稀有 | 触发 | 战斗前查看对手上回合技能 |
-| b07 | 节能回路 | 普通 | 被动 | 技能MP消耗-1 |
-| b08 | 绝地反击 | 稀有 | 触发 | HP首次<50%回15HP+抽2牌, 每场1次 |
-
-### 战斗流程
-
-1. 备战阶段 → 玩家组卡（24击牌 + 6技能），锁定后进入战斗
-2. 战斗按轮次进行，每轮所有参与者依次行动
-3. 出牌链：出击 → 对手响应（或pass）→ 结算
-4. 每轮结束：行动点刷新，MP**不恢复**
-5. 技能按 triggerTiming 自动/手动触发
-
-### 轮抓阶段（占位）
-
-接口已定义在 `packages/shared/src/types/draft.ts`，等待实现。技能的 `rarity` 字段（普通/稀有）即为轮抓分级。
+Types defined in `shared/src/types/draft.ts`, awaiting implementation.
 
 ## Conventions
 
-- All shared types/schemas/constants live in `packages/shared` and are imported as `from 'shared'`
-- Event names are constants in `shared/src/types/events.ts` (`C2S.*` for client→server, `S2C.*` for server→client)
-- Frontend path alias: `@/` maps to `packages/client/src/`
-- Vite proxies `/api` and `/socket.io` to backend in dev
-- Chinese labels for all phases/actions are defined in shared constants
+- All shared types/schemas/constants imported as `from 'shared'`
+- Event names are constants: `C2S.*` / `S2C.*` (never raw strings)
+- Chinese labels for phases/actions are in shared constants (`PHASE_LABELS`, `ACTION_LABELS`, etc.)
+- ESM throughout (`"type": "module"` in all packages)
+- Server uses `.js` extensions in imports (TypeScript ESM requirement)
+
+## Deployment
+
+- **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`), triggered by `v*` tags
+- **Host**: VPS via SSH, deployed to `/www/wwwroot/holyGK`
+- **Process**: pm2 with `ecosystem.config.cjs` — runs `tsx src/index.ts` in production on port 25656
+- **Build steps**: `pnpm install` → `build:shared` → `build client` → pm2 restart

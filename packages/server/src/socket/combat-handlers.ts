@@ -160,7 +160,7 @@ export function registerCombatHandlers(
     try {
       const result = combatService.stopCombat(parsed.data.combatId)
       if (result) {
-        io.to(roomKey).emit(S2C.COMBAT_ENDED, { combatId: parsed.data.combatId, ...result.snapshot })
+        io.to(roomKey).emit(S2C.COMBAT_ENDED, { ...result.snapshot })
         emitEvents(io, roomKey, parsed.data.combatId, result.events)
         logService.recordLog({ roomId: auth.roomId, playerId: auth.playerId, actionType: 'combat', description: `战斗结束 (${parsed.data.combatId.slice(0, 8)})` })
       }

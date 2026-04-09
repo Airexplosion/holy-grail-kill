@@ -7,7 +7,7 @@ import { getDb } from '../db/connection.js'
 import { rooms, players } from '../db/schema.js'
 import * as roomService from '../services/room.service.js'
 
-const router = Router()
+const router: Router = Router()
 
 // Create room (requires account token)
 router.post('/', accountAuthMiddleware, validate(createRoomSchema), (req, res, next) => {

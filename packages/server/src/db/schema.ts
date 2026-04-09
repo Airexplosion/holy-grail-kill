@@ -10,6 +10,26 @@ export const accounts = sqliteTable('accounts', {
   updatedAt: integer('updated_at').notNull(),
 })
 
+export const groups = sqliteTable('groups', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  name: text('name').notNull(),
+  color: text('color').notNull(),
+  masterPlayerId: text('master_player_id').notNull(),
+  servantPlayerId: text('servant_player_id').notNull(),
+  secretKeysRemaining: integer('secret_keys_remaining').notNull().default(3),
+  status: text('status').notNull().default('alive'),
+  akashaKeyHolder: integer('akasha_key_holder', { mode: 'boolean' }).notNull().default(false),
+  magicChannelProgress: integer('magic_channel_progress').notNull().default(0),
+  isReady: integer('is_ready', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, (table) => ({
+  roomIdx: index('idx_groups_room').on(table.roomId),
+  masterIdx: uniqueIndex('idx_groups_master').on(table.masterPlayerId),
+  servantIdx: uniqueIndex('idx_groups_servant').on(table.servantPlayerId),
+}))
+
 export const rooms = sqliteTable('rooms', {
   id: text('id').primaryKey(),
   code: text('code').notNull().unique(),
@@ -43,11 +63,11 @@ export const players = sqliteTable('players', {
   color: text('color').notNull().default('#3B82F6'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
-}, (table) => [
-  index('idx_players_room').on(table.roomId),
-  index('idx_players_region').on(table.regionId),
-  uniqueIndex('idx_players_account_room').on(table.accountName, table.roomId),
-])
+}, (table) => ({
+  roomIdx: index('idx_players_room').on(table.roomId),
+  regionIdx: index('idx_players_region').on(table.regionId),
+  accountRoomIdx: uniqueIndex('idx_players_account_room').on(table.accountName, table.roomId),
+}))
 
 export const cards = sqliteTable('cards', {
   id: text('id').primaryKey(),
@@ -60,9 +80,9 @@ export const cards = sqliteTable('cards', {
   location: text('location').notNull().default('deck'),
   position: integer('position').notNull().default(0),
   createdAt: integer('created_at').notNull(),
-}, (table) => [
-  index('idx_cards_player_location').on(table.playerId, table.location),
-])
+}, (table) => ({
+  playerLocationIdx: index('idx_cards_player_location').on(table.playerId, table.location),
+}))
 
 export const regions = sqliteTable('regions', {
   id: text('id').primaryKey(),
@@ -71,9 +91,9 @@ export const regions = sqliteTable('regions', {
   positionX: real('position_x').notNull().default(0),
   positionY: real('position_y').notNull().default(0),
   metadata: text('metadata').notNull().default('{}'),
-}, (table) => [
-  index('idx_regions_room').on(table.roomId),
-])
+}, (table) => ({
+  roomIdx: index('idx_regions_room').on(table.roomId),
+}))
 
 export const adjacencies = sqliteTable('adjacencies', {
   id: text('id').primaryKey(),
@@ -81,9 +101,9 @@ export const adjacencies = sqliteTable('adjacencies', {
   fromRegionId: text('from_region_id').notNull().references(() => regions.id),
   toRegionId: text('to_region_id').notNull().references(() => regions.id),
   type: text('type').notNull().default('bidirectional'),
-}, (table) => [
-  index('idx_adjacencies_room_from').on(table.roomId, table.fromRegionId),
-])
+}, (table) => ({
+  roomFromIdx: index('idx_adjacencies_room_from').on(table.roomId, table.fromRegionId),
+}))
 
 export const outposts = sqliteTable('outposts', {
   id: text('id').primaryKey(),
@@ -92,9 +112,9 @@ export const outposts = sqliteTable('outposts', {
   regionId: text('region_id').notNull().references(() => regions.id),
   color: text('color').notNull(),
   placedAt: integer('placed_at').notNull(),
-}, (table) => [
-  index('idx_outposts_room_player').on(table.roomId, table.playerId),
-])
+}, (table) => ({
+  roomPlayerIdx: index('idx_outposts_room_player').on(table.roomId, table.playerId),
+}))
 
 export const actionQueue = sqliteTable('action_queue', {
   id: text('id').primaryKey(),
@@ -107,9 +127,9 @@ export const actionQueue = sqliteTable('action_queue', {
   status: text('status').notNull().default('pending'),
   submittedAt: integer('submitted_at').notNull(),
   resolvedAt: integer('resolved_at'),
-}, (table) => [
-  index('idx_action_queue_room_turn').on(table.roomId, table.turnNumber, table.status),
-])
+}, (table) => ({
+  roomTurnIdx: index('idx_action_queue_room_turn').on(table.roomId, table.turnNumber, table.status),
+}))
 
 export const operationLogs = sqliteTable('operation_logs', {
   id: text('id').primaryKey(),
@@ -121,9 +141,9 @@ export const operationLogs = sqliteTable('operation_logs', {
   phase: text('phase').notNull(),
   turnNumber: integer('turn_number').notNull(),
   createdAt: integer('created_at').notNull(),
-}, (table) => [
-  index('idx_logs_room_created').on(table.roomId, table.createdAt),
-])
+}, (table) => ({
+  roomCreatedIdx: index('idx_logs_room_created').on(table.roomId, table.createdAt),
+}))
 
 export const chatMessages = sqliteTable('chat_messages', {
   id: text('id').primaryKey(),
@@ -132,9 +152,9 @@ export const chatMessages = sqliteTable('chat_messages', {
   regionId: text('region_id').notNull(),
   content: text('content').notNull(),
   createdAt: integer('created_at').notNull(),
-}, (table) => [
-  index('idx_chat_room_region').on(table.roomId, table.regionId, table.createdAt),
-])
+}, (table) => ({
+  roomRegionIdx: index('idx_chat_room_region').on(table.roomId, table.regionId, table.createdAt),
+}))
 
 export const gameSnapshots = sqliteTable('game_snapshots', {
   id: text('id').primaryKey(),
@@ -152,9 +172,9 @@ export const skillTemplates = sqliteTable('skill_templates', {
   defaultCharges: integer('default_charges'),
   description: text('description').notNull().default(''),
   metadata: text('metadata').notNull().default('{}'),
-}, (table) => [
-  index('idx_skill_templates_room').on(table.roomId),
-])
+}, (table) => ({
+  roomIdx: index('idx_skill_templates_room').on(table.roomId),
+}))
 
 export const knownOutposts = sqliteTable('known_outposts', {
   id: text('id').primaryKey(),
@@ -165,10 +185,10 @@ export const knownOutposts = sqliteTable('known_outposts', {
   regionId: text('region_id').notNull(),
   color: text('color').notNull(),
   discoveredAt: integer('discovered_at').notNull(),
-}, (table) => [
-  index('idx_known_outposts_player').on(table.playerId),
-  uniqueIndex('idx_known_outposts_player_outpost').on(table.playerId, table.outpostId),
-])
+}, (table) => ({
+  playerIdx: index('idx_known_outposts_player').on(table.playerId),
+  playerOutpostIdx: uniqueIndex('idx_known_outposts_player_outpost').on(table.playerId, table.outpostId),
+}))
 
 export const playerSkills = sqliteTable('player_skills', {
   id: text('id').primaryKey(),
@@ -181,9 +201,9 @@ export const playerSkills = sqliteTable('player_skills', {
   charges: integer('charges'),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   metadata: text('metadata').notNull().default('{}'),
-}, (table) => [
-  index('idx_player_skills_player').on(table.playerId),
-])
+}, (table) => ({
+  playerIdx: index('idx_player_skills_player').on(table.playerId),
+}))
 
 export const deckBuilds = sqliteTable('deck_builds', {
   id: text('id').primaryKey(),
@@ -194,9 +214,9 @@ export const deckBuilds = sqliteTable('deck_builds', {
   isLocked: integer('is_locked', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
-}, (table) => [
-  uniqueIndex('idx_deck_builds_room_player').on(table.roomId, table.playerId),
-])
+}, (table) => ({
+  roomPlayerIdx: uniqueIndex('idx_deck_builds_room_player').on(table.roomId, table.playerId),
+}))
 
 export const combatStates = sqliteTable('combat_states', {
   id: text('id').primaryKey(),
@@ -210,9 +230,9 @@ export const combatStates = sqliteTable('combat_states', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   startedAt: integer('started_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
-}, (table) => [
-  index('idx_combat_states_room').on(table.roomId),
-])
+}, (table) => ({
+  roomIdx: index('idx_combat_states_room').on(table.roomId),
+}))
 
 export const combatLogs = sqliteTable('combat_logs', {
   id: text('id').primaryKey(),
@@ -223,9 +243,9 @@ export const combatLogs = sqliteTable('combat_logs', {
   description: text('description').notNull(),
   details: text('details').notNull().default('{}'),
   createdAt: integer('created_at').notNull(),
-}, (table) => [
-  index('idx_combat_logs_room').on(table.roomId, table.createdAt),
-])
+}, (table) => ({
+  roomCreatedIdx: index('idx_combat_logs_room').on(table.roomId, table.createdAt),
+}))
 
 export const deckShares = sqliteTable('deck_shares', {
   id: text('id').primaryKey(),

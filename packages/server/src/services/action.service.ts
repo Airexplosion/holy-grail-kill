@@ -7,7 +7,7 @@ import * as playerService from './player.service.js'
 import * as mapService from './map.service.js'
 import * as outpostService from './outpost.service.js'
 import { canTraverse, getAdjacentRegions } from '../engine/visibility.js'
-import type { ActionType, ActionResult } from 'shared'
+import type { ActionType, ActionResult, Adjacency } from 'shared'
 
 export function submitAction(
   roomId: string,
@@ -120,7 +120,7 @@ export function resolveActions(roomId: string, actionPointIndex: number): Action
     .all()
     .map(s => ({ ...s, payload: JSON.parse(s.payload) }))
 
-  const adjacencyList = mapService.getRoomAdjacencies(roomId)
+  const adjacencyList = mapService.getRoomAdjacencies(roomId) as Adjacency[]
   const results: ActionResult[] = []
 
   // Resolution order: moves → scouts → outpost placement → outpost destroy → consumes

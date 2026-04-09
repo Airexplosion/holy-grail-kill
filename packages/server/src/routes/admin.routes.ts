@@ -3,7 +3,7 @@ import { adminAuthMiddleware } from '../middleware/auth.js'
 import * as adminLibrary from '../services/admin-library.service.js'
 import * as accountService from '../services/account.service.js'
 
-const router = Router()
+const router: Router = Router()
 
 // All admin routes require admin auth
 router.use(adminAuthMiddleware)

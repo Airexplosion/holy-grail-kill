@@ -1,6 +1,6 @@
 import { Router } from 'express'
 
-const router = Router()
+const router: Router = Router()
 
 router.get('/', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: Date.now() } })
