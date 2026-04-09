@@ -9,9 +9,17 @@ export const C2S = {
 
   // ── 游戏流程（自驱动） ──
   GAME_START: 'game:start',
+  /** 房主/GM 设置游戏大阶段 */
+  GAME_SET_STAGE: 'game:stage:set',
   /** 标记本组已就绪（替代GM推进阶段） */
   GROUP_READY: 'group:ready',
   GROUP_UNREADY: 'group:unready',
+  /** 组队：请求与某玩家组队 */
+  GROUP_FORM_REQUEST: 'group:form:request',
+  /** 组队：接受组队请求 */
+  GROUP_FORM_ACCEPT: 'group:form:accept',
+  /** 组队：选择角色类型 */
+  GROUP_FORM_SET_ROLE: 'group:form:set-role',
   /** @deprecated 保留兼容 */
   GAME_PHASE_ADVANCE: 'game:phase:advance',
   GAME_PHASE_SET: 'game:phase:set',

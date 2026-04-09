@@ -9,6 +9,7 @@ import type { ServantAttributes, MasterAttributes, ServantClassId, MasterArchety
 import * as characterService from '../services/character.service.js'
 import * as groupService from '../services/group.service.js'
 import * as logService from '../services/log.service.js'
+import { tryAutoAdvance } from './stage-handlers.js'
 
 export function registerCharacterHandlers(
   socket: AuthenticatedSocket,
@@ -112,5 +113,8 @@ export function registerCharacterHandlers(
     socket.emit(S2C.CHARACTER_CONFIRMED, { playerId: auth.playerId, field: 'all' })
     io.to(roomKey).emit(S2C.CHARACTER_CONFIRMED, { playerId: auth.playerId, field: 'complete' })
     logService.recordLog({ roomId: auth.roomId, playerId: auth.playerId, actionType: 'character', description: '角色创建确认完成' })
+
+    // 检查是否所有组都确认了 → 自动推进到 draft
+    tryAutoAdvance(auth.roomId, roomKey, io)
   })
 }

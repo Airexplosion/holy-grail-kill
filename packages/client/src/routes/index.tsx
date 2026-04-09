@@ -8,6 +8,8 @@ import { GMPage } from './GMPage'
 import { AdminPage } from './AdminPage'
 import { CharacterCreatePage } from './CharacterCreatePage'
 import { DraftPage } from './DraftPage'
+import { GroupFormationPage } from './GroupFormationPage'
+import { DeckBuildPage } from './DeckBuildPage'
 import type { GameStage } from 'shared'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -40,9 +42,10 @@ function RequireGame({ children, requireGm = false }: { children: React.ReactNod
 function getGameRoute(gameStage: GameStage, isGm: boolean): string {
   if (isGm) return '/gm'
   switch (gameStage) {
+    case 'lobby': return '/group-formation'
     case 'character_create': return '/character-create'
     case 'draft': return '/draft'
-    case 'deck_build':
+    case 'deck_build': return '/deck-build'
     case 'playing': return '/game'
     default: return '/game'
   }
@@ -88,8 +91,16 @@ export function AppRouter() {
           element={<RequireAdmin><AdminPage /></RequireAdmin>}
         />
         <Route
+          path="/group-formation"
+          element={<RequireGame><GroupFormationPage /></RequireGame>}
+        />
+        <Route
           path="/character-create"
           element={<RequireGame><CharacterCreatePage /></RequireGame>}
+        />
+        <Route
+          path="/deck-build"
+          element={<RequireGame><DeckBuildPage /></RequireGame>}
         />
         <Route
           path="/draft"

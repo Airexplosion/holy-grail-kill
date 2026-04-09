@@ -18,6 +18,7 @@ import { filterMapForPlayer, buildPlayerSelfView } from '../engine/visibility.js
 import { registerDeckBuildHandlers } from './deck-build-handlers.js'
 import { registerCombatHandlers } from './combat-handlers.js'
 import { registerGroupHandlers } from './group-handlers.js'
+import { registerStageHandlers } from './stage-handlers.js'
 import { registerCharacterHandlers } from './character-handlers.js'
 import { registerDraftHandlers } from './draft-handlers.js'
 import { registerVictoryHandlers } from './victory-handlers.js'
@@ -96,6 +97,7 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     registerChatHandlers(socket, roomKey)
     registerGmHandlers(socket, roomKey)
     registerGroupHandlers(socket, roomKey, io!, emitError)
+    registerStageHandlers(socket, roomKey, io!, emitError)
     registerCharacterHandlers(socket, roomKey, io!, emitError)
     registerDraftHandlers(socket, roomKey, io!, emitError)
     registerVictoryHandlers(socket, roomKey, io!, emitError)

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import * as draftService from '../services/draft.service.js'
 import * as groupService from '../services/group.service.js'
 import * as logService from '../services/log.service.js'
+import { tryAutoAdvance } from './stage-handlers.js'
 
 const draftPickSchema = z.object({ skillId: z.string() })
 const draftFinalizeSchema = z.object({ keepIds: z.array(z.string()) })
@@ -82,6 +83,9 @@ export function registerDraftHandlers(
         actionType: 'draft',
         description: '所有组轮抓完成',
       })
+
+      // 自动推进到 deck_build
+      tryAutoAdvance(auth.roomId, roomKey, io)
     }
   })
 }

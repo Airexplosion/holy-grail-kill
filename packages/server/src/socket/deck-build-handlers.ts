@@ -5,6 +5,7 @@ import * as deckBuildService from '../services/deck-build.service.js'
 import * as skillLibraryService from '../services/skill-library.service.js'
 import * as shareService from '../services/share.service.js'
 import * as logService from '../services/log.service.js'
+import { tryAutoAdvance } from './stage-handlers.js'
 
 export function registerDeckBuildHandlers(
   socket: AuthenticatedSocket,
@@ -54,6 +55,9 @@ export function registerDeckBuildHandlers(
         actionType: 'deck-build',
         description: `${auth.accountName} 锁定了配置`,
       })
+
+      // 检查是否所有组都锁定 → 自动推进到 playing
+      tryAutoAdvance(auth.roomId, roomKey, io)
     } else {
       socket.emit(S2C.DECK_BUILD_VALIDATION, result)
     }
