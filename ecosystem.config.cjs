@@ -6,6 +6,9 @@ module.exports = {
       script: 'src/index.ts',
       interpreter: 'node',
       interpreter_args: '--import tsx/esm',
+      env: {
+        PORT: 25656,
+      },
       env_production: {
         NODE_ENV: 'production',
         PORT: 25656,
