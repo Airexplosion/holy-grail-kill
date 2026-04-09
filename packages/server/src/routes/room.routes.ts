@@ -6,6 +6,7 @@ import { eq, and } from 'drizzle-orm'
 import { getDb } from '../db/connection.js'
 import { rooms, players } from '../db/schema.js'
 import * as roomService from '../services/room.service.js'
+import * as skillSubmissionService from '../services/skill-submission.service.js'
 
 const router: Router = Router()
 
@@ -129,6 +130,32 @@ router.get('/my-rooms', accountAuthMiddleware, (req, res, next) => {
   } catch (err) {
     next(err)
   }
+})
+
+// ===== Skill Submissions (玩家提交技能概念) =====
+
+router.post('/:roomId/skill-submissions', accountAuthMiddleware, (req, res, next) => {
+  try {
+    const auth = (req as any).auth
+    const result = skillSubmissionService.submitSkill({
+      roomId: req.params.roomId!,
+      playerId: auth.accountId,
+      playerName: auth.username,
+      ...req.body,
+    })
+    res.json({ success: true, data: result })
+  } catch (err) { next(err) }
+})
+
+router.get('/:roomId/skill-submissions', accountAuthMiddleware, (req, res) => {
+  const subs = skillSubmissionService.getRoomSubmissions(req.params.roomId!)
+  res.json({ success: true, data: subs })
+})
+
+router.get('/:roomId/skill-submissions/mine', accountAuthMiddleware, (req, res) => {
+  const auth = (req as any).auth
+  const subs = skillSubmissionService.getPlayerSubmissions(req.params.roomId!, auth.accountId)
+  res.json({ success: true, data: subs })
 })
 
 export default router

@@ -327,6 +327,23 @@ function initTables(sqlite: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_location_prizes_room_region ON location_prizes(room_id, region_id);
 
+    CREATE TABLE IF NOT EXISTS skill_submissions (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      player_id TEXT NOT NULL,
+      player_name TEXT NOT NULL,
+      source_name TEXT NOT NULL,
+      skill_name TEXT NOT NULL,
+      skill_type TEXT NOT NULL DEFAULT 'active',
+      skill_category TEXT NOT NULL DEFAULT 'base',
+      description TEXT NOT NULL,
+      cost_description TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      admin_skill_id TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_skill_submissions_room ON skill_submissions(room_id);
+
     CREATE TABLE IF NOT EXISTS admin_strike_library (
       id TEXT PRIMARY KEY,
       color TEXT NOT NULL,

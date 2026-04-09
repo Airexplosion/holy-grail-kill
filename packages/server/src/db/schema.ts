@@ -280,6 +280,25 @@ export const deckShares = sqliteTable('deck_shares', {
   createdAt: integer('created_at').notNull(),
 })
 
+// 玩家技能提交（概念文本，待GM审核）
+export const skillSubmissions = sqliteTable('skill_submissions', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  playerId: text('player_id').notNull(),
+  playerName: text('player_name').notNull(),
+  sourceName: text('source_name').notNull(),
+  skillName: text('skill_name').notNull(),
+  skillType: text('skill_type').notNull().default('active'),
+  skillCategory: text('skill_category').notNull().default('base'),
+  description: text('description').notNull(),
+  costDescription: text('cost_description'),
+  status: text('status').notNull().default('pending'), // pending/approved/rejected
+  adminSkillId: text('admin_skill_id'), // 关联到 admin_skill_library
+  createdAt: integer('created_at').notNull(),
+}, (table) => ({
+  roomIdx: index('idx_skill_submissions_room').on(table.roomId),
+}))
+
 // Admin-managed libraries (overrides constants at runtime)
 export const adminSkillLibrary = sqliteTable('admin_skill_library', {
   id: text('id').primaryKey(),
