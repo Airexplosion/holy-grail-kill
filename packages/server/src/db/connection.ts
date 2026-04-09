@@ -53,6 +53,23 @@ function initTables(sqlite: Database.Database) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS groups (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      master_player_id TEXT NOT NULL,
+      servant_player_id TEXT NOT NULL,
+      secret_keys_remaining INTEGER NOT NULL DEFAULT 3,
+      status TEXT NOT NULL DEFAULT 'alive',
+      akasha_key_holder INTEGER NOT NULL DEFAULT 0,
+      magic_channel_progress INTEGER NOT NULL DEFAULT 0,
+      is_ready INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_groups_room ON groups(room_id);
+
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
       room_id TEXT NOT NULL REFERENCES rooms(id),
@@ -70,12 +87,32 @@ function initTables(sqlite: Database.Database) {
       status TEXT NOT NULL DEFAULT 'connected',
       card_menu_unlocked INTEGER NOT NULL DEFAULT 0,
       color TEXT NOT NULL DEFAULT '#3B82F6',
+      role TEXT,
+      group_id TEXT,
+      str TEXT,
+      end_rank TEXT,
+      agi TEXT,
+      mag TEXT,
+      luk TEXT,
+      class_id TEXT,
+      action_power TEXT,
+      archetype_id TEXT,
+      tactical_style TEXT,
+      tactical_style_used INTEGER NOT NULL DEFAULT 0,
+      armor_class INTEGER NOT NULL DEFAULT 0,
+      base_damage INTEGER NOT NULL DEFAULT 0,
+      actions INTEGER NOT NULL DEFAULT 0,
+      actions_max INTEGER NOT NULL DEFAULT 0,
+      hand_size_max INTEGER NOT NULL DEFAULT 5,
+      extra_mp INTEGER NOT NULL DEFAULT 0,
+      extra_mp_max INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_players_account_room ON players(account_name, room_id);
     CREATE INDEX IF NOT EXISTS idx_players_room ON players(room_id);
     CREATE INDEX IF NOT EXISTS idx_players_region ON players(region_id);
+    CREATE INDEX IF NOT EXISTS idx_players_group ON players(group_id);
 
     CREATE TABLE IF NOT EXISTS cards (
       id TEXT PRIMARY KEY,
@@ -267,9 +304,28 @@ function initTables(sqlite: Database.Database) {
       effects TEXT NOT NULL DEFAULT '[]',
       tags TEXT NOT NULL DEFAULT '[]',
       enabled INTEGER NOT NULL DEFAULT 1,
+      skill_category TEXT NOT NULL DEFAULT 'base',
+      draft_ready INTEGER NOT NULL DEFAULT 0,
+      source_name TEXT,
+      is_high_rarity INTEGER NOT NULL DEFAULT 0,
+      card_count INTEGER,
+      skill_color TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS location_prizes (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      region_id TEXT NOT NULL REFERENCES regions(id),
+      skill_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      claimed INTEGER NOT NULL DEFAULT 0,
+      claimed_by_group_id TEXT,
+      claimed_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_location_prizes_room_region ON location_prizes(room_id, region_id);
 
     CREATE TABLE IF NOT EXISTS admin_strike_library (
       id TEXT PRIMARY KEY,
@@ -285,8 +341,38 @@ function initTables(sqlite: Database.Database) {
     );
   `)
 
-  // Migration: add is_admin to existing accounts table
-  try { sqlite.exec('ALTER TABLE accounts ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0') } catch {}
+  // Migrations: add new columns to existing tables (safe to re-run)
+  const migrations = [
+    'ALTER TABLE accounts ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN role TEXT',
+    'ALTER TABLE players ADD COLUMN group_id TEXT',
+    'ALTER TABLE players ADD COLUMN str TEXT',
+    'ALTER TABLE players ADD COLUMN end_rank TEXT',
+    'ALTER TABLE players ADD COLUMN agi TEXT',
+    'ALTER TABLE players ADD COLUMN mag TEXT',
+    'ALTER TABLE players ADD COLUMN luk TEXT',
+    'ALTER TABLE players ADD COLUMN class_id TEXT',
+    'ALTER TABLE players ADD COLUMN action_power TEXT',
+    'ALTER TABLE players ADD COLUMN archetype_id TEXT',
+    'ALTER TABLE players ADD COLUMN tactical_style TEXT',
+    'ALTER TABLE players ADD COLUMN tactical_style_used INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN armor_class INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN base_damage INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN actions INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN actions_max INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN hand_size_max INTEGER NOT NULL DEFAULT 5',
+    'ALTER TABLE players ADD COLUMN extra_mp INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE players ADD COLUMN extra_mp_max INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE admin_skill_library ADD COLUMN skill_category TEXT NOT NULL DEFAULT \'base\'',
+    'ALTER TABLE admin_skill_library ADD COLUMN draft_ready INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE admin_skill_library ADD COLUMN source_name TEXT',
+    'ALTER TABLE admin_skill_library ADD COLUMN is_high_rarity INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE admin_skill_library ADD COLUMN card_count INTEGER',
+    'ALTER TABLE admin_skill_library ADD COLUMN skill_color TEXT',
+  ]
+  for (const sql of migrations) {
+    try { sqlite.exec(sql) } catch {}
+  }
 }
 
 export function closeDb() {
