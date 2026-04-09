@@ -127,8 +127,9 @@ export { RESPONSE_MAP, COMBAT_TURN_PHASES, COMBAT_TIMING_WINDOW_MS, MAX_CHAIN_DE
 
 // ── New constants ──
 
-export type { ServantClassId, ServantClassDef, ClassAbilityDef } from './constants/classes.js'
+export type { ServantClassId, ServantClassMeta, ClassAbilityDef, ClassAbilityType, ClassAbilityTiming, ClassAbilityEffectDef } from './constants/classes.js'
 export { SERVANT_CLASSES, SERVANT_CLASS_MAP, CLASS_NAME_LABELS, STANDARD_SEVEN_CLASS_IDS } from './constants/classes.js'
+export { getClassAbilities, getClassAbility, getRegisteredClassIds } from './constants/class-abilities/index.js'
 
 export type { MasterArchetypeId, SkillSlotType, MasterArchetypeDef, SlotModifier } from './constants/archetypes.js'
 export { MASTER_ARCHETYPES, MASTER_ARCHETYPE_MAP, ARCHETYPE_NAME_LABELS, BASE_SKILL_SLOTS } from './constants/archetypes.js'
