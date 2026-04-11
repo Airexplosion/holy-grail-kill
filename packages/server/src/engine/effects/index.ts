@@ -12,3 +12,9 @@ import './combat.js'
 import './stat-modifier.js'
 import './card-ops.js'
 import './condition.js'
+
+// ── 角色专属效果 ──
+import './nyaruko.js'
+import './cagliostro.js'
+import './titania.js'
+import './tesso.js'

@@ -66,6 +66,23 @@ export {
   FORCED_WAR_COEXIST_THRESHOLD,
 } from './types/victory.js'
 
+// ── True Name system ──
+
+export type { TrueNameCandidate, TrueNameGuessResult, RevealedAttributes, TrueNameReveal } from './types/true-name.js'
+
+// ── Skill Pool (地图池) ──
+
+export type {
+  PoolSkillEntry, PoolSnapshot, PoolSnapshotEntry,
+  PoolDrawResult, SkillReplaceRequest, SkillReplaceResult, PlayerReplaceTracker,
+} from './types/skill-pool.js'
+export { BASE_REPLACEMENT_COUNT, POOL_DRAW_COUNT } from './types/skill-pool.js'
+
+// ── Solo Mode (单机模式) ──
+
+export type { SoloStage, SoloConfig, AiTemplate, AiActionStyle, SoloCombatResult, SoloGameResult } from './types/solo.js'
+export { DEFAULT_SOLO_CONFIG, AI_TEMPLATES } from './types/solo.js'
+
 // ── Strike card types (extended) ──
 
 export type { BaseStrikeColor, SpecialColor, CardColor, StrikeColor, StrikeCardTemplate, PlayerStrikeSelection } from './types/strike-card.js'

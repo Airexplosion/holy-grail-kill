@@ -11,6 +11,8 @@ import { useDeckBuildStore } from '@/stores/deck-build.store'
 import { useCombatStore } from '@/stores/combat.store'
 import { useGroupStore } from '@/stores/group.store'
 import { useDraftStore } from '@/stores/draft.store'
+import { useTrueNameStore } from '@/stores/true-name.store'
+import { useSkillPoolStore } from '@/stores/skill-pool.store'
 import { S2C } from 'shared'
 import type { Socket } from 'socket.io-client'
 
@@ -331,6 +333,40 @@ export function useSocket() {
 
     socket.on(S2C.GAME_STAGE_CHANGED, (data: any) => {
       useGameStore.getState().setGameStage(data.stage)
+    })
+
+    // ── 真名系统 ──
+    socket.on(S2C.TRUE_NAME_CANDIDATES, (data: any) => {
+      if (data.candidates) useTrueNameStore.getState().setCandidates(data.candidates)
+    })
+
+    socket.on(S2C.TRUE_NAME_RESULT, (data: any) => {
+      useTrueNameStore.getState().setLastResult(data)
+      // 3秒后清除结果提示
+      setTimeout(() => useTrueNameStore.getState().setLastResult(null), 4000)
+    })
+
+    socket.on(S2C.TRUE_NAME_REVEALED_LIST, (data: any) => {
+      if (data.revealed) useTrueNameStore.getState().setRevealed(data.revealed)
+    })
+
+    // ── 地图池 ──
+    socket.on(S2C.POOL_SNAPSHOT, (data: any) => {
+      if (data.skills) useSkillPoolStore.getState().setSnapshot(data.skills)
+    })
+
+    socket.on(S2C.POOL_DRAW_RESULT, (data: any) => {
+      if (data.drawnSkills) {
+        useSkillPoolStore.getState().setDrawResult(data.drawnSkills, data.replacementsRemaining ?? 0)
+      }
+    })
+
+    socket.on(S2C.POOL_REPLACE_RESULT, (data: any) => {
+      useSkillPoolStore.getState().setReplaceResult(data)
+      if (data.replacementsRemaining != null) {
+        useSkillPoolStore.getState().updateRemaining(data.replacementsRemaining)
+      }
+      setTimeout(() => useSkillPoolStore.getState().setReplaceResult(null), 3000)
     })
 
     // Error

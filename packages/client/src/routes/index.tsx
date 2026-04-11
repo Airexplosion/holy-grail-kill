@@ -12,6 +12,8 @@ import { GroupFormationPage } from './GroupFormationPage'
 import { DeckBuildPage } from './DeckBuildPage'
 import { SkillCatalogPage } from './SkillCatalogPage'
 import { SkillSubmitPage } from './SkillSubmitPage'
+import { SoloPage } from './SoloPage'
+import { DraftSimPage } from './DraftSimPage'
 import type { GameStage } from 'shared'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -115,6 +117,14 @@ export function AppRouter() {
         <Route
           path="/skill-submit"
           element={<RequireGame><SkillSubmitPage /></RequireGame>}
+        />
+        <Route
+          path="/solo"
+          element={<RequireAuth><SoloPage /></RequireAuth>}
+        />
+        <Route
+          path="/draft-sim"
+          element={<RequireAuth><DraftSimPage /></RequireAuth>}
         />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

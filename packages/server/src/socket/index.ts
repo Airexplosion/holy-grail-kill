@@ -22,6 +22,9 @@ import { registerStageHandlers } from './stage-handlers.js'
 import { registerCharacterHandlers } from './character-handlers.js'
 import { registerDraftHandlers } from './draft-handlers.js'
 import { registerVictoryHandlers } from './victory-handlers.js'
+import { registerTrueNameHandlers } from './true-name-handlers.js'
+import { registerSkillPoolHandlers } from './skill-pool-handlers.js'
+import { registerSoloHandlers } from './solo-handlers.js'
 import { z } from 'zod'
 import {
   addRegionSchema, updateRegionSchema, setAdjacencySchema, removeAdjacencySchema, movePlayerSchema,
@@ -101,6 +104,9 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     registerCharacterHandlers(socket, roomKey, io!, emitError)
     registerDraftHandlers(socket, roomKey, io!, emitError)
     registerVictoryHandlers(socket, roomKey, io!, emitError)
+    registerTrueNameHandlers(socket, roomKey, io!, emitError)
+    registerSkillPoolHandlers(socket, roomKey, io!, emitError)
+    registerSoloHandlers(socket, roomKey, io!, emitError)
     registerDeckBuildHandlers(socket, roomKey, io!, requireGm, emitError)
     registerCombatHandlers(socket, roomKey, io!, requireGm, emitError)
 

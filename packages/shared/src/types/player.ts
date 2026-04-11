@@ -7,6 +7,7 @@ export interface Player {
   readonly accountName: string
   readonly displayName: string
   readonly isGm: boolean
+  readonly isBot: boolean
   readonly hp: number
   readonly hpMax: number
   readonly mp: number
@@ -69,6 +70,7 @@ export interface PlayerPublicInfo {
   readonly displayName: string
   readonly color: string
   readonly status: PlayerStatus
+  readonly isBot: boolean
   readonly role: CharacterRole | null
   readonly groupId: string | null
   readonly classId: string | null

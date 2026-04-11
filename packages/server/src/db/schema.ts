@@ -50,6 +50,7 @@ export const players = sqliteTable('players', {
   accountName: text('account_name').notNull(),
   displayName: text('display_name').notNull(),
   isGm: integer('is_gm', { mode: 'boolean' }).notNull().default(false),
+  isBot: integer('is_bot', { mode: 'boolean' }).notNull().default(false),
   hp: integer('hp').notNull().default(100),
   hpMax: integer('hp_max').notNull().default(100),
   mp: integer('mp').notNull().default(50),
@@ -358,4 +359,69 @@ export const locationPrizes = sqliteTable('location_prizes', {
   claimedAt: integer('claimed_at'),
 }, (table) => ({
   roomRegionIdx: index('idx_location_prizes_room_region').on(table.roomId, table.regionId),
+}))
+
+// ── 真名系统 ──
+
+/** 遭遇记录：记录哪些玩家之间有过同区域接触 */
+export const encounters = sqliteTable('encounters', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  playerIdA: text('player_id_a').notNull().references(() => players.id),
+  playerIdB: text('player_id_b').notNull().references(() => players.id),
+  firstMetAt: integer('first_met_at').notNull(),
+}, (table) => ({
+  roomIdx: index('idx_encounters_room').on(table.roomId),
+  pairIdx: uniqueIndex('idx_encounters_pair').on(table.playerIdA, table.playerIdB),
+}))
+
+/** 真名揭示记录：猜中者永久可见目标五维 */
+export const trueNameReveals = sqliteTable('true_name_reveals', {
+  id: text('id').primaryKey(),
+  guesserPlayerId: text('guesser_player_id').notNull().references(() => players.id),
+  targetPlayerId: text('target_player_id').notNull().references(() => players.id),
+  trueName: text('true_name').notNull(),
+  revealedAt: integer('revealed_at').notNull(),
+}, (table) => ({
+  guesserIdx: index('idx_true_name_guesser').on(table.guesserPlayerId),
+  pairIdx: uniqueIndex('idx_true_name_pair').on(table.guesserPlayerId, table.targetPlayerId),
+}))
+
+// ── 地图池 ──
+
+/** 地图池技能条目（实际状态，含是否被抽走） */
+export const skillPool = sqliteTable('skill_pool', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  skillId: text('skill_id').notNull(),
+  name: text('name').notNull(),
+  skillClass: text('skill_class').notNull(),
+  description: text('description').notNull().default(''),
+  sourceName: text('source_name').notNull().default(''),
+  drawn: integer('drawn', { mode: 'boolean' }).notNull().default(false),
+  drawnByPlayerId: text('drawn_by_player_id'),
+  enteredAt: integer('entered_at').notNull(),
+}, (table) => ({
+  roomIdx: index('idx_skill_pool_room').on(table.roomId),
+}))
+
+/** 地图池快照（入池时冻结，全员可见） */
+export const skillPoolSnapshot = sqliteTable('skill_pool_snapshot', {
+  id: text('id').primaryKey(),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  /** JSON: PoolSnapshotEntry[] */
+  skills: text('skills').notNull().default('[]'),
+  createdAt: integer('created_at').notNull(),
+})
+
+/** 玩家替换次数追踪 */
+export const playerReplaceTrackers = sqliteTable('player_replace_trackers', {
+  id: text('id').primaryKey(),
+  playerId: text('player_id').notNull().references(() => players.id),
+  roomId: text('room_id').notNull().references(() => rooms.id),
+  baseCount: integer('base_count').notNull().default(2),
+  killBonusCount: integer('kill_bonus_count').notNull().default(0),
+  usedCount: integer('used_count').notNull().default(0),
+}, (table) => ({
+  playerIdx: uniqueIndex('idx_replace_tracker_player').on(table.playerId, table.roomId),
 }))

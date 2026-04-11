@@ -358,6 +358,63 @@ function initTables(sqlite: Database.Database) {
     );
   `)
 
+  // ── 真名系统 ──
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS encounters (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      player_id_a TEXT NOT NULL REFERENCES players(id),
+      player_id_b TEXT NOT NULL REFERENCES players(id),
+      first_met_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_encounters_room ON encounters(room_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_encounters_pair ON encounters(player_id_a, player_id_b);
+
+    CREATE TABLE IF NOT EXISTS true_name_reveals (
+      id TEXT PRIMARY KEY,
+      guesser_player_id TEXT NOT NULL REFERENCES players(id),
+      target_player_id TEXT NOT NULL REFERENCES players(id),
+      true_name TEXT NOT NULL,
+      revealed_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_true_name_guesser ON true_name_reveals(guesser_player_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_true_name_pair ON true_name_reveals(guesser_player_id, target_player_id);
+  `)
+
+  // ── 地图池 ──
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS skill_pool (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      skill_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      skill_class TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      source_name TEXT NOT NULL DEFAULT '',
+      drawn INTEGER NOT NULL DEFAULT 0,
+      drawn_by_player_id TEXT,
+      entered_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_skill_pool_room ON skill_pool(room_id);
+
+    CREATE TABLE IF NOT EXISTS skill_pool_snapshot (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      skills TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS player_replace_trackers (
+      id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL REFERENCES players(id),
+      room_id TEXT NOT NULL REFERENCES rooms(id),
+      base_count INTEGER NOT NULL DEFAULT 2,
+      kill_bonus_count INTEGER NOT NULL DEFAULT 0,
+      used_count INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_replace_tracker_player ON player_replace_trackers(player_id, room_id);
+  `)
+
   // Migrations: add new columns to existing tables (safe to re-run)
   const migrations = [
     'ALTER TABLE accounts ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0',
@@ -386,6 +443,7 @@ function initTables(sqlite: Database.Database) {
     'ALTER TABLE admin_skill_library ADD COLUMN is_high_rarity INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE admin_skill_library ADD COLUMN card_count INTEGER',
     'ALTER TABLE admin_skill_library ADD COLUMN skill_color TEXT',
+    'ALTER TABLE players ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0',
   ]
   for (const sql of migrations) {
     try { sqlite.exec(sql) } catch {}

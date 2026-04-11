@@ -67,7 +67,12 @@ router.get('/lobby', (_req, res, next) => {
     const db = getDb()
     const allRooms = db.select().from(rooms).all()
 
-    const roomList = allRooms.map((room) => {
+    const roomList = allRooms
+      .filter((room) => {
+        const config = JSON.parse(room.config)
+        return !config.customRules?.isSolo // 过滤单机房间
+      })
+      .map((room) => {
       const playerCount = db.select().from(players)
         .where(eq(players.roomId, room.id))
         .all().length

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
+import { useSoloStore } from '@/stores/solo.store'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
+import type { Player, Room } from 'shared'
 
 interface RoomInfo {
   id: string
@@ -24,7 +27,9 @@ interface MyRoom extends RoomInfo {
 type Tab = 'lobby' | 'my-rooms' | 'create'
 
 export function LobbyPage() {
+  const navigate = useNavigate()
   const { account, logout, joinRoom, createRoom, isLoading, error, clearError } = useAuthStore()
+  const enterRoom = useAuthStore((s) => s.enterRoom)
   const [tab, setTab] = useState<Tab>('lobby')
   const [lobbyRooms, setLobbyRooms] = useState<RoomInfo[]>([])
   const [myRooms, setMyRooms] = useState<MyRoom[]>([])
@@ -32,6 +37,25 @@ export function LobbyPage() {
   const [newRoomName, setNewRoomName] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [soloCreating, setSoloCreating] = useState(false)
+
+  const handleStartSolo = async () => {
+    setSoloCreating(true)
+    clearError()
+    try {
+      const data = await api.post<{ token: string; room: Room; humanPlayer: Player; aiGroups: any[] }>(
+        '/solo/create', {}, { useAccountToken: true },
+      )
+      enterRoom(data.token, data.humanPlayer, data.room)
+      useSoloStore.getState().setAiOpponents(data.aiGroups)
+      useSoloStore.getState().setStage('playing')
+      navigate('/solo')
+    } catch (err) {
+      useAuthStore.getState().clearError()
+    } finally {
+      setSoloCreating(false)
+    }
+  }
 
   const fetchLobby = async () => {
     setLoading(true)
@@ -114,6 +138,19 @@ export function LobbyPage() {
           {account?.isAdmin && (
             <a href="/admin" className="btn-sm text-xs bg-red-900/50 text-red-300 hover:bg-red-900/70">管理后台</a>
           )}
+          <button
+            onClick={() => navigate('/draft-sim')}
+            className="btn-sm text-xs bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            轮抓模拟
+          </button>
+          <button
+            onClick={handleStartSolo}
+            disabled={soloCreating}
+            className="btn-sm text-xs bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            {soloCreating ? '创建中...' : '单机模式'}
+          </button>
           <button onClick={logout} className="btn-sm btn-secondary text-xs">退出登录</button>
         </div>
       </header>

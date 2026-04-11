@@ -16,6 +16,10 @@ import { ReadyButton } from '@/components/game/ReadyButton'
 import { SecretKeyPanel } from '@/components/game/SecretKeyPanel'
 import { useMapStore } from '@/stores/map.store'
 import { useCombatStore } from '@/stores/combat.store'
+import { TrueNamePanel } from '@/components/true-name/TrueNamePanel'
+import { TrueNameGuessModal } from '@/components/true-name/TrueNameGuessModal'
+import { PoolViewPanel } from '@/components/skill-pool/PoolViewPanel'
+import { PoolDrawModal } from '@/components/skill-pool/PoolDrawModal'
 
 export function PlayerPage() {
   useSocket()
@@ -103,6 +107,12 @@ export function PlayerPage() {
           {/* Secret Key Panel */}
           {myGroup && <SecretKeyPanel />}
 
+          {/* True Name Panel — 自动显示（遭遇过对手后出现） */}
+          <TrueNamePanel />
+
+          {/* 地图池查看 — 轮抓结束后自动出现 */}
+          <PoolViewPanel />
+
           {/* Phase-specific panel */}
           {isCombat ? (
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -130,6 +140,8 @@ export function PlayerPage() {
         </div>
       </main>
       {showSkillBrowser && <SkillBrowser onClose={() => setShowSkillBrowser(false)} />}
+      <TrueNameGuessModal />
+      <PoolDrawModal currentSkills={[]} />
     </div>
   )
 }

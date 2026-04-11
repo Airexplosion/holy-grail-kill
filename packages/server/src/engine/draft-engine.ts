@@ -23,6 +23,8 @@ export interface DraftEngineState {
   readonly groupIds: readonly string[]
   readonly packs: DraftPack[]
   readonly selections: Map<string, SkillLibraryEntry[]>  // groupId → selected skills
+  /** 每组上一轮是否选了高稀有度 */
+  readonly lastPickWasRare: Map<string, boolean>
   round: number
   readonly totalRounds: number
   readonly direction: 'forward' | 'backward'
@@ -74,8 +76,10 @@ export function initDraftState(
 ): DraftEngineState {
   const packs = distributeIntoPacks(pool, groupIds.length)
   const selections = new Map<string, SkillLibraryEntry[]>()
+  const lastPickWasRare = new Map<string, boolean>()
   for (const gid of groupIds) {
     selections.set(gid, [])
+    lastPickWasRare.set(gid, false)
   }
 
   return {
@@ -83,6 +87,7 @@ export function initDraftState(
     groupIds,
     packs,
     selections,
+    lastPickWasRare,
     round: 1,
     totalRounds,
     direction: 'forward',
@@ -114,14 +119,25 @@ export function pickSkill(
   const skillIndex = pack.skills.findIndex(s => s.id === skillId)
   if (skillIndex === -1) return null
 
-  // 高稀有度限制：如果上一次选了高稀有度，这次不能主动选高稀有度
-  // （简化实现：仅检查 isHighRarity tag）
-
   const skill = pack.skills[skillIndex]!
+
+  // 高稀有度连续限制：上一轮选了 rare，这一轮不能再选 rare
+  // 例外：包里只剩 rare 了（没有 normal 可选）
+  if (skill.rarity === 'rare' && state.lastPickWasRare.get(groupId)) {
+    const hasNormal = pack.skills.some(s => s.rarity !== 'rare')
+    if (hasNormal) {
+      return null // 拒绝：连续选高稀有
+    }
+    // 包里全是 rare，允许
+  }
+
   pack.skills.splice(skillIndex, 1)
 
   const selected = state.selections.get(groupId)!
   selected.push(skill)
+
+  // 记录本轮是否选了 rare
+  state.lastPickWasRare.set(groupId, skill.rarity === 'rare')
 
   return skill
 }
@@ -136,8 +152,17 @@ export function pickRandom(state: DraftEngineState, groupId: string): SkillLibra
   const pack = getGroupPack(state, groupIndex)
   if (!pack || pack.skills.length === 0) return null
 
-  const randomIndex = Math.floor(Math.random() * pack.skills.length)
-  return pickSkill(state, groupId, pack.skills[randomIndex]!.id)
+  // 尊重连续稀有限制：优先从 normal 中随机选
+  const lastWasRare = state.lastPickWasRare.get(groupId) || false
+  let candidates = pack.skills
+  if (lastWasRare) {
+    const normals = pack.skills.filter(s => s.rarity !== 'rare')
+    if (normals.length > 0) candidates = normals
+    // 如果全是 rare，candidates 保持为全部（允许选）
+  }
+
+  const randomIndex = Math.floor(Math.random() * candidates.length)
+  return pickSkill(state, groupId, candidates[randomIndex]!.id)
 }
 
 /**
@@ -199,4 +224,22 @@ export function finalizeSelection(
   state.selections.set(groupId, kept)
 
   return { kept, discarded }
+}
+
+/**
+ * 检查某个技能对指定组是否可选
+ * 用于前端灰掉不可选的高稀有技能
+ */
+export function canPickSkill(state: DraftEngineState, groupId: string, skill: SkillLibraryEntry): boolean {
+  if (skill.rarity !== 'rare') return true
+  const lastWasRare = state.lastPickWasRare.get(groupId) || false
+  if (!lastWasRare) return true
+
+  // 上一轮选了 rare → 检查包里是否还有 normal
+  const groupIndex = state.groupIds.indexOf(groupId)
+  const pack = getGroupPack(state, groupIndex)
+  if (!pack) return false
+
+  const hasNormal = pack.skills.some(s => s.rarity !== 'rare')
+  return !hasNormal // 全是 rare 时允许
 }

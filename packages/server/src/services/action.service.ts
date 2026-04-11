@@ -11,6 +11,7 @@ import type { ActionType, ActionResult, Adjacency } from 'shared'
 import * as akashaKeyService from './akasha-key.service.js'
 import * as spiritService from './spirit.service.js'
 import * as groupService from './group.service.js'
+import * as trueNameService from './true-name.service.js'
 
 export function submitAction(
   roomId: string,
@@ -174,14 +175,15 @@ function resolveOneAction(
         return r(false, '无法移动到该区域')
       }
       playerService.updatePlayerRegion(playerId, payload.targetRegionId)
+      trueNameService.recordEncountersInRegion(roomId, playerId, payload.targetRegionId)
       return r(true, '移动成功', { regionId: payload.targetRegionId })
     }
 
     case 'move_designated': {
       const region = mapService.getRegion(payload.targetRegionId)
       if (!region) return r(false, '目标区域不存在')
-      // TODO: 验证地点牌并消耗
       playerService.updatePlayerRegion(playerId, payload.targetRegionId)
+      trueNameService.recordEncountersInRegion(roomId, playerId, payload.targetRegionId)
       return r(true, '指定移动成功', { regionId: payload.targetRegionId })
     }
 
@@ -190,6 +192,7 @@ function resolveOneAction(
       const target = outposts.find((o: any) => o.regionId === payload.targetRegionId)
       if (!target) return r(false, '该区域没有你的据点')
       playerService.updatePlayerRegion(playerId, payload.targetRegionId)
+      trueNameService.recordEncountersInRegion(roomId, playerId, payload.targetRegionId)
       return r(true, '据点移动成功', { regionId: payload.targetRegionId })
     }
 

@@ -37,6 +37,7 @@ export type SkillTriggerTiming =
   | 'on_heal'
   | 'on_move'
   | 'on_scout'
+  | 'on_strike'
   | 'manual'
 
 export interface SkillMetadata {
@@ -100,4 +101,14 @@ export interface SkillLibraryEntry {
   readonly targetType: 'self' | 'single' | 'area' | 'global'
   readonly effects: readonly SkillEffectDef[]
   readonly tags?: readonly string[]
+  /**
+   * 卡牌型技能：组卡时往牌库加入的卡牌数量
+   * 为 undefined 或 0 时表示非卡牌型技能（纯被动/主动施放）
+   */
+  readonly cardCount?: number
+  /**
+   * 卡牌型技能：加入的卡牌颜色
+   * 仅 cardCount > 0 时有意义
+   */
+  readonly cardColor?: import('./strike-card.js').CardColor
 }

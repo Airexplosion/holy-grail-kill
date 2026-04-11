@@ -135,6 +135,24 @@ export const C2S = {
   SKILL_LIBRARY_GET: 'skill-library:get',
   DECK_SHARE_CREATE: 'deck-share:create',
   DECK_SHARE_GET: 'deck-share:get',
+
+  // ── 真名系统 ──
+  TRUE_NAME_GET_CANDIDATES: 'true-name:get-candidates',
+  TRUE_NAME_GUESS: 'true-name:guess',
+
+  // ── 地图池 ──
+  POOL_GET_SNAPSHOT: 'pool:get-snapshot',
+  POOL_DRAW: 'pool:draw',
+  POOL_REPLACE_SKILL: 'pool:replace-skill',
+  POOL_SKIP: 'pool:skip',
+
+  // ── 单机模式 ──
+  SOLO_CREATE: 'solo:create',
+  SOLO_DRAFT_PICK: 'solo:draft:pick',
+  SOLO_DECK_BUILD_SUBMIT: 'solo:deck-build:submit',
+  SOLO_COMBAT_ACTION: 'solo:combat:action',
+  SOLO_ACTION_SUBMIT: 'solo:action:submit',
+  SOLO_QUIT: 'solo:quit',
 } as const
 
 // Server -> Client
@@ -266,6 +284,27 @@ export const S2C = {
   // ── 技能库 & 分享 ──
   SKILL_LIBRARY_DATA: 'skill-library:data',
   DECK_SHARE_DATA: 'deck-share:data',
+
+  // ── 真名系统 ──
+  TRUE_NAME_CANDIDATES: 'true-name:candidates',
+  TRUE_NAME_RESULT: 'true-name:result',
+  TRUE_NAME_REVEALED_LIST: 'true-name:revealed-list',
+
+  // ── 地图池 ──
+  POOL_SNAPSHOT: 'pool:snapshot',
+  POOL_DRAW_RESULT: 'pool:draw-result',
+  POOL_REPLACE_RESULT: 'pool:replace-result',
+  POOL_UPDATED: 'pool:updated',
+
+  // ── 单机模式 ──
+  SOLO_STATE: 'solo:state',
+  SOLO_DRAFT_STATE: 'solo:draft:state',
+  SOLO_DRAFT_PICK_MADE: 'solo:draft:pick-made',
+  SOLO_DECK_BUILD_STATE: 'solo:deck-build:state',
+  SOLO_COMBAT_STATE: 'solo:combat:state',
+  SOLO_ACTION_STATE: 'solo:action:state',
+  SOLO_AI_ACTIONS: 'solo:ai:actions',
+  SOLO_RESULT: 'solo:result',
 
   // ── 错误 ──
   ERROR: 'error',
