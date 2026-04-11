@@ -8,14 +8,30 @@
 import { Router } from 'express'
 import { accountAuthMiddleware } from '../middleware/auth.js'
 import * as draftSim from '../services/draft-sim.service.js'
+import * as packGroupService from '../services/pack-group.service.js'
 
 const router: Router = Router()
+
+// 获取所有包组列表（用于轮抓选包）
+router.get('/pack-groups', accountAuthMiddleware, (_req, res, next) => {
+  try {
+    let groups = packGroupService.getAllPackGroups()
+    if (groups.length === 0) {
+      groups = packGroupService.seedDefaultPackGroups() as any[]
+    }
+    res.json({ success: true, data: groups })
+  } catch (err) { next(err) }
+})
 
 // 创建模拟会话
 router.post('/create', accountAuthMiddleware, (req, res, next) => {
   try {
     const auth = (req as any).auth
-    const result = draftSim.createSession(auth.displayName || auth.username || '玩家')
+    const { packGroupIds } = req.body || {}
+    const result = draftSim.createSession(
+      auth.displayName || auth.username || '玩家',
+      packGroupIds,
+    )
     res.json({ success: true, data: result })
   } catch (err) { next(err) }
 })

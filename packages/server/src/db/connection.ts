@@ -415,6 +415,30 @@ function initTables(sqlite: Database.Database) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_replace_tracker_player ON player_replace_trackers(player_id, room_id);
   `)
 
+  // ── 角色提交 + 技能包组 ──
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS player_characters (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES accounts(id),
+      source_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      review_notes TEXT,
+      skills TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_player_characters_account ON player_characters(account_id);
+    CREATE INDEX IF NOT EXISTS idx_player_characters_status ON player_characters(status);
+
+    CREATE TABLE IF NOT EXISTS skill_pack_groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      character_source_names TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `)
+
   // Migrations: add new columns to existing tables (safe to re-run)
   const migrations = [
     'ALTER TABLE accounts ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0',

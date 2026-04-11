@@ -5,6 +5,9 @@ import * as adminLibrary from '../services/admin-library.service.js'
 import * as accountService from '../services/account.service.js'
 import * as skillSubmissionService from '../services/skill-submission.service.js'
 import * as draftService from '../services/draft.service.js'
+import * as charService from '../services/character-submission.service.js'
+import * as packGroupService from '../services/pack-group.service.js'
+import { reviewCharacterSchema, createPackGroupSchema } from 'shared'
 import { getDb } from '../db/connection.js'
 import { adminSkillLibrary } from '../db/schema.js'
 
@@ -126,6 +129,65 @@ router.post('/draft-pool/start/:roomId', (req, res, next) => {
   try {
     const result = draftService.startDraft(req.params.roomId!)
     res.json({ success: true, data: result })
+  } catch (err) { next(err) }
+})
+
+// ===== 角色审核 =====
+
+router.get('/characters', (req, res, next) => {
+  try {
+    const statusFilter = req.query.status as string | undefined
+    const characters = charService.getAllSubmittedCharacters(statusFilter)
+    res.json({ success: true, data: characters })
+  } catch (err) { next(err) }
+})
+
+router.post('/characters/:id/review', (req, res, next) => {
+  try {
+    const parsed = reviewCharacterSchema.safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ success: false, error: '参数验证失败' }); return }
+    charService.reviewCharacter(req.params.id!, parsed.data.status, parsed.data.reviewNotes)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+// ===== 技能包组 =====
+
+router.get('/pack-groups', (_req, res, next) => {
+  try {
+    const groups = packGroupService.getAllPackGroups()
+    res.json({ success: true, data: groups })
+  } catch (err) { next(err) }
+})
+
+router.post('/pack-groups', (req, res, next) => {
+  try {
+    const parsed = createPackGroupSchema.safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ success: false, error: '参数验证失败' }); return }
+    const group = packGroupService.createPackGroup(parsed.data.name, parsed.data.characterSourceNames)
+    res.json({ success: true, data: group })
+  } catch (err) { next(err) }
+})
+
+router.patch('/pack-groups/:id', (req, res, next) => {
+  try {
+    const group = packGroupService.updatePackGroup(req.params.id!, req.body)
+    if (!group) { res.status(404).json({ success: false, error: '包组不存在' }); return }
+    res.json({ success: true, data: group })
+  } catch (err) { next(err) }
+})
+
+router.delete('/pack-groups/:id', (req, res, next) => {
+  try {
+    packGroupService.deletePackGroup(req.params.id!)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+router.post('/pack-groups/seed', (_req, res, next) => {
+  try {
+    const groups = packGroupService.seedDefaultPackGroups()
+    res.json({ success: true, data: groups })
   } catch (err) { next(err) }
 })
 

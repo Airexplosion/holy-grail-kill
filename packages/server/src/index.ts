@@ -6,6 +6,7 @@ import { createServer } from 'http'
 import cors from 'cors'
 import { env } from './config/env.js'
 import { getDb, closeDb } from './db/connection.js'
+import * as packGroupService from './services/pack-group.service.js'
 import { errorHandler } from './middleware/error-handler.js'
 import { setupSocketIO } from './socket/index.js'
 import authRoutes from './routes/auth.routes.js'
@@ -14,6 +15,7 @@ import healthRoutes from './routes/health.routes.js'
 import adminRoutes from './routes/admin.routes.js'
 import soloRoutes from './routes/solo.routes.js'
 import draftSimRoutes from './routes/draft-sim.routes.js'
+import characterRoutes from './routes/character.routes.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -29,6 +31,7 @@ app.use('/api/health', healthRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/solo', soloRoutes)
 app.use('/api/draft-sim', draftSimRoutes)
+app.use('/api/characters', characterRoutes)
 
 // Error handler
 app.use(errorHandler)
@@ -36,6 +39,10 @@ app.use(errorHandler)
 // Initialize DB
 getDb()
 console.log('[DB] Database initialized')
+
+// Seed default pack groups
+packGroupService.seedDefaultPackGroups()
+console.log('[DB] Default pack groups seeded')
 
 // Setup Socket.IO
 setupSocketIO(httpServer)

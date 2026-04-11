@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 import { SkillLibraryAdmin } from '@/components/admin/SkillLibraryAdmin'
 import { StrikeCardAdmin } from '@/components/admin/StrikeCardAdmin'
+import { CharacterReviewPanel } from '@/components/admin/CharacterReviewPanel'
+import { PackGroupPanel } from '@/components/admin/PackGroupPanel'
 import { cn } from '@/lib/cn'
 
-type Tab = 'skills' | 'strikes'
+type Tab = 'characters' | 'pack-groups' | 'skills' | 'strikes'
 
 export function AdminPage() {
   const account = useAuthStore((s) => s.account)
   const logout = useAuthStore((s) => s.logout)
-  const [activeTab, setActiveTab] = useState<Tab>('skills')
+  const [activeTab, setActiveTab] = useState<Tab>('characters')
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: 'characters', label: '角色审核' },
+    { id: 'pack-groups', label: '技能包组' },
     { id: 'skills', label: '技能库' },
     { id: 'strikes', label: '击牌库' },
   ]
@@ -30,27 +34,20 @@ export function AdminPage() {
       </header>
 
       <div className="flex-1 flex">
-        {/* Sidebar */}
         <nav className="w-48 bg-dark-700 border-r border-dark-400 p-3 space-y-1">
           {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'w-full text-left text-sm px-3 py-2 rounded transition-colors',
-                activeTab === tab.id
-                  ? 'bg-dark-500 text-dark-50'
-                  : 'text-dark-300 hover:text-dark-100 hover:bg-dark-600',
-              )}
-            >
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={cn('w-full text-left text-sm px-3 py-2 rounded transition-colors',
+                activeTab === tab.id ? 'bg-dark-500 text-dark-50' : 'text-dark-300 hover:text-dark-100 hover:bg-dark-600')}>
               {tab.label}
             </button>
           ))}
         </nav>
 
-        {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl">
+            {activeTab === 'characters' && <CharacterReviewPanel />}
+            {activeTab === 'pack-groups' && <PackGroupPanel />}
             {activeTab === 'skills' && <SkillLibraryAdmin />}
             {activeTab === 'strikes' && <StrikeCardAdmin />}
           </div>

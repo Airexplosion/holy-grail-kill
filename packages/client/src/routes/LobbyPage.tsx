@@ -139,6 +139,18 @@ export function LobbyPage() {
             <a href="/admin" className="btn-sm text-xs bg-red-900/50 text-red-300 hover:bg-red-900/70">管理后台</a>
           )}
           <button
+            onClick={() => navigate('/skill-browser')}
+            className="btn-sm text-xs bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            技能图鉴
+          </button>
+          <button
+            onClick={() => navigate('/my-characters')}
+            className="btn-sm text-xs bg-green-600 hover:bg-green-700 text-white"
+          >
+            我的角色
+          </button>
+          <button
             onClick={() => navigate('/draft-sim')}
             className="btn-sm text-xs bg-purple-600 hover:bg-purple-700 text-white"
           >

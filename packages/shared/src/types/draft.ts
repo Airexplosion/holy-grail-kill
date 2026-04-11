@@ -63,11 +63,33 @@ export interface DraftPack {
 
 /** 轮抓大阶段 */
 export type DraftPhase =
-  | 'submitting'      // 技能提交中
+  | 'character_select' // 玩家选择提交哪个角色
+  | 'submitting'      // 技能提交中（旧，保留兼容）
   | 'pool_building'   // 系统构建池
   | 'drafting'        // 轮抓进行中
   | 'selecting'       // 保留7弃3阶段
   | 'complete'        // 轮抓完成
+
+/** 底池构成信息（全员可见部分） */
+export interface DraftPoolInfo {
+  /** 选中的2个技能包组名称 */
+  readonly selectedPackGroupNames: readonly string[]
+  /** 包组贡献的技能数（48） */
+  readonly packGroupSkillCount: number
+  /** 玩家提交的角色贡献的技能数（42） */
+  readonly playerCharacterSkillCount: number
+  /** 随机高稀有度技能 */
+  readonly randomRareSkill: { readonly name: string; readonly sourceName: string; readonly description: string } | null
+  /** 总技能数（91） */
+  readonly totalSkills: number
+}
+
+/** 玩家选角提交记录 */
+export interface DraftCharacterSelection {
+  readonly playerId: string
+  readonly characterId: string
+  readonly sourceName: string
+}
 
 /** 轮抓状态 */
 export interface DraftState {
@@ -126,6 +148,7 @@ export const DEFAULT_DRAFT_CONFIG: DraftConfig = {
 
 /** 轮抓阶段中文标签 */
 export const DRAFT_PHASE_LABELS: Record<DraftPhase, string> = {
+  character_select: '选择角色',
   submitting: '技能提交',
   pool_building: '构建技能池',
   drafting: '轮抓进行中',

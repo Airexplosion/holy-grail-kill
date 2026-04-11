@@ -34,6 +34,8 @@ export const C2S = {
 
   // ── 技能轮抓 ──
   DRAFT_SUBMIT_SKILLS: 'draft:submit-skills',
+  DRAFT_SELECT_CHARACTER: 'draft:select-character',
+  DRAFT_START: 'draft:start',
   DRAFT_PICK: 'draft:pick',
   DRAFT_FINALIZE: 'draft:finalize',
 
@@ -188,6 +190,9 @@ export const S2C = {
   DRAFT_PACK_RECEIVED: 'draft:pack:received',
   DRAFT_PICK_MADE: 'draft:pick:made',
   DRAFT_COMPLETE: 'draft:complete',
+  DRAFT_POOL_INFO: 'draft:pool:info',
+  DRAFT_CHARACTER_SELECTED: 'draft:character:selected',
+  DRAFT_MAP_POOL: 'draft:map-pool',
 
   // ── 行动 ──
   ACTION_SUBMITTED: 'action:submitted',

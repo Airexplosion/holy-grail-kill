@@ -79,7 +79,7 @@ export type SkillClass = 'A' | 'B'
 /** 技能稀有度（用于轮抓阶段分级） */
 export type SkillRarity = 'normal' | 'rare'
 
-export const SKILL_CLASS_LABELS: Record<SkillClass, string> = { A: 'A级', B: 'B级' }
+export const SKILL_CLASS_LABELS: Record<SkillClass, string> = { A: '技能', B: '宝具' }
 export const SKILL_RARITY_LABELS: Record<SkillRarity, string> = { normal: '普通', rare: '稀有' }
 
 /** 组卡约束 */

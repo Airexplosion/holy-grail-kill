@@ -425,3 +425,29 @@ export const playerReplaceTrackers = sqliteTable('player_replace_trackers', {
 }, (table) => ({
   playerIdx: uniqueIndex('idx_replace_tracker_player').on(table.playerId, table.roomId),
 }))
+
+// ── 角色提交系统 ──
+
+export const playerCharacters = sqliteTable('player_characters', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull().references(() => accounts.id),
+  sourceName: text('source_name').notNull(),
+  status: text('status').notNull().default('draft'),
+  reviewNotes: text('review_notes'),
+  skills: text('skills').notNull().default('[]'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, (table) => ({
+  accountIdx: index('idx_player_characters_account').on(table.accountId),
+  statusIdx: index('idx_player_characters_status').on(table.status),
+}))
+
+// ── 技能包组 ──
+
+export const skillPackGroups = sqliteTable('skill_pack_groups', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  characterSourceNames: text('character_source_names').notNull().default('[]'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})

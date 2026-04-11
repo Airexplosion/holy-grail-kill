@@ -83,6 +83,24 @@ export { BASE_REPLACEMENT_COUNT, POOL_DRAW_COUNT } from './types/skill-pool.js'
 export type { SoloStage, SoloConfig, AiTemplate, AiActionStyle, SoloCombatResult, SoloGameResult } from './types/solo.js'
 export { DEFAULT_SOLO_CONFIG, AI_TEMPLATES } from './types/solo.js'
 
+// ── Character Submission ──
+
+export type { CharacterStatus, CharacterSkillDef, PlayerCharacter } from './types/character-submission.js'
+export { CHARACTER_STATUS_LABELS, SKILLS_PER_CHARACTER, A_CLASS_COUNT, B_CLASS_COUNT } from './types/character-submission.js'
+
+// ── Pack Group ──
+
+export type { SkillPackGroup } from './types/pack-group.js'
+export { CHARACTERS_PER_GROUP, SKILLS_PER_GROUP, PACK_GROUPS_PER_DRAFT } from './types/pack-group.js'
+
+// ── Character Submission Schemas ──
+
+export {
+  characterSkillDefSchema, createCharacterSchema, reviewCharacterSchema,
+  createPackGroupSchema, updatePackGroupSchema,
+} from './schemas/character-submission.schema.js'
+export type { CreateCharacterInput, ReviewCharacterInput, CreatePackGroupInput } from './schemas/character-submission.schema.js'
+
 // ── Strike card types (extended) ──
 
 export type { BaseStrikeColor, SpecialColor, CardColor, StrikeColor, StrikeCardTemplate, PlayerStrikeSelection } from './types/strike-card.js'
@@ -103,6 +121,7 @@ export type { CombatState, CombatTurnPhase, PlayChainEntry, CombatAction, Combat
 export type {
   SkillSubmission, DraftSkillDef, DraftSkillType,
   DraftPack, DraftPhase, DraftState, DraftPick, DraftConfig,
+  DraftPoolInfo, DraftCharacterSelection,
 } from './types/draft.js'
 export { DEFAULT_DRAFT_CONFIG, DRAFT_PHASE_LABELS } from './types/draft.js'
 
