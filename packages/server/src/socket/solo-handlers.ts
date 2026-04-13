@@ -241,12 +241,29 @@ export function registerSoloHandlers(
     const combatId = combatService.getPlayerCombatId(humanPlayerId)
     if (!combatId) { emitError(socket, '你不在战斗中'); return }
 
-    const result = combatService.processAction(combatId, humanPlayerId, {
-      type: parsed.data.type,
-      cardColor: parsed.data.cardColor as any,
-      skillId: parsed.data.skillId,
-      targetId: parsed.data.targetId,
-    })
+    const action = parsed.data.type === 'play_strike'
+      ? {
+          type: 'play_strike' as const,
+          cardColor: parsed.data.cardColor as any,
+          targetId: parsed.data.targetId || '',
+        }
+      : parsed.data.type === 'use_skill'
+        ? {
+            type: 'use_skill' as const,
+            skillId: parsed.data.skillId || '',
+            targetId: parsed.data.targetId,
+          }
+        : parsed.data.type === 'respond'
+          ? {
+              type: 'respond' as const,
+              cardColor: parsed.data.cardColor as any,
+              skillId: parsed.data.skillId,
+            }
+          : {
+              type: 'pass' as const,
+            }
+
+    const result = combatService.processAction(combatId, humanPlayerId, action)
 
     socket.emit(S2C.SOLO_COMBAT_STATE, result.snapshot)
     if (result.resolveResults.length > 0) {
