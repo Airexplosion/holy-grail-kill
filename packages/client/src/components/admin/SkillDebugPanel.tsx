@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { SkillLibraryEntry } from 'shared'
+import type { SkillClass, SkillLibraryEntry } from 'shared'
 import { api } from '@/lib/api'
 
 type SkillRow = SkillLibraryEntry & { enabled?: boolean; source?: 'db' | 'constant' }
@@ -19,6 +19,31 @@ type SandboxResult = {
   mpCost: number
 }
 
+function summaryFromResult(result: SandboxResult) {
+  const sourceHpChange = result.after.source.hp - result.before.source.hp
+  const sourceMpChange = result.after.source.mp - result.before.source.mp
+  const targetHpLoss = Math.max(0, result.before.target.hp - result.after.target.hp)
+  const targetShieldLoss = Math.max(0, result.before.target.shield - result.after.target.shield)
+  const successCount = result.results.filter(item => item.success).length
+  const triggeredEffects = result.results
+    .filter(item => item.success)
+    .map(item => item.effectType)
+
+  return {
+    sourceHpChange,
+    sourceMpChange,
+    targetHpLoss,
+    targetShieldLoss,
+    successCount,
+    triggeredEffects,
+  }
+}
+
+function formatDelta(value: number) {
+  if (value > 0) return `+${value}`
+  return `${value}`
+}
+
 export function SkillDebugPanel({
   skillsPath = '/admin/skills',
   runPath = '/admin/skills/debug-test',
@@ -32,6 +57,8 @@ export function SkillDebugPanel({
 }) {
   const [skills, setSkills] = useState<SkillRow[]>([])
   const [skillId, setSkillId] = useState('')
+  const [search, setSearch] = useState('')
+  const [filterClass, setFilterClass] = useState<'all' | SkillClass>('all')
   const [sourceHp, setSourceHp] = useState('100')
   const [sourceHpMax, setSourceHpMax] = useState('100')
   const [sourceMp, setSourceMp] = useState('10')
@@ -48,14 +75,33 @@ export function SkillDebugPanel({
     const data = await api.get<SkillRow[]>(skillsPath, { useAccountToken: true })
     const enabled = data.filter(skill => skill.enabled !== false)
     setSkills(enabled)
-    if (!skillId && enabled[0]) setSkillId(enabled[0].id)
-  }, [skillId, skillsPath])
+  }, [skillsPath])
 
   useEffect(() => {
     loadSkills()
   }, [loadSkills])
 
-  const selectedSkill = useMemo(() => skills.find(skill => skill.id === skillId) || null, [skillId, skills])
+  const filteredSkills = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return skills.filter(skill => {
+      const classMatch = filterClass === 'all' ? true : skill.skillClass === filterClass
+      const searchMatch = keyword
+        ? skill.name.toLowerCase().includes(keyword)
+          || skill.id.toLowerCase().includes(keyword)
+          || skill.description.toLowerCase().includes(keyword)
+        : true
+      return classMatch && searchMatch
+    })
+  }, [filterClass, search, skills])
+
+  useEffect(() => {
+    if (!filteredSkills.some(skill => skill.id === skillId)) {
+      setSkillId(filteredSkills[0]?.id || '')
+    }
+  }, [filteredSkills, skillId])
+
+  const selectedSkill = useMemo(() => filteredSkills.find(skill => skill.id === skillId) || skills.find(skill => skill.id === skillId) || null, [filteredSkills, skillId, skills])
+  const resultSummary = result ? summaryFromResult(result) : null
 
   const runTest = async () => {
     if (!skillId) return
@@ -93,15 +139,41 @@ export function SkillDebugPanel({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-dark-700 rounded-lg border border-dark-500 p-4 space-y-3">
+        <div className="bg-dark-700 rounded-lg border border-dark-500 p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <label className="text-xs text-dark-300">
+              搜索技能名 / ID
+              <input
+                className="input text-sm w-full mt-1"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="比如：生命、a03、圣剑"
+              />
+            </label>
+            <label className="text-xs text-dark-300">
+              技能分类
+              <select className="input text-sm w-full mt-1" value={filterClass} onChange={(e) => setFilterClass(e.target.value as 'all' | SkillClass)}>
+                <option value="all">全部</option>
+                <option value="A">A 级技能</option>
+                <option value="B">B 级宝具</option>
+              </select>
+            </label>
+          </div>
+
           <div>
-            <label className="block text-xs text-dark-300 mb-1">技能</label>
+            <label className="block text-xs text-dark-300 mb-1">技能（当前 {filteredSkills.length} 个）</label>
             <select className="input text-sm w-full" value={skillId} onChange={(e) => setSkillId(e.target.value)}>
-              {skills.map(skill => (
-                <option key={skill.id} value={skill.id}>{skill.name} ({skill.id})</option>
+              {filteredSkills.map(skill => (
+                <option key={skill.id} value={skill.id}>{skill.name} [{skill.skillClass}] ({skill.id})</option>
               ))}
             </select>
-            {selectedSkill && <p className="text-xs text-dark-400 mt-2">{selectedSkill.description}</p>}
+            {selectedSkill && (
+              <div className="mt-2 bg-dark-800 rounded p-3 text-xs text-dark-300 space-y-1">
+                <div className="text-dark-100 font-medium">{selectedSkill.name} / {selectedSkill.id}</div>
+                <div>分类：{selectedSkill.skillClass}　类型：{selectedSkill.type}　触发：{selectedSkill.triggerTiming}</div>
+                <div>描述：{selectedSkill.description}</div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -124,10 +196,48 @@ export function SkillDebugPanel({
           {error && <div className="text-xs text-red-400">{error}</div>}
         </div>
 
-        <div className="bg-dark-700 rounded-lg border border-dark-500 p-4 space-y-3">
+        <div className="bg-dark-700 rounded-lg border border-dark-500 p-4 space-y-4">
           {!result && <div className="text-sm text-dark-400">还没有测试结果。</div>}
-          {result && (
+          {result && resultSummary && (
             <>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="bg-dark-800 rounded p-3">
+                  <div className="text-[11px] text-dark-400">造成伤害</div>
+                  <div className="text-lg font-bold text-red-400">{resultSummary.targetHpLoss}</div>
+                </div>
+                <div className="bg-dark-800 rounded p-3">
+                  <div className="text-[11px] text-dark-400">扣掉护盾</div>
+                  <div className="text-lg font-bold text-amber-400">{resultSummary.targetShieldLoss}</div>
+                </div>
+                <div className="bg-dark-800 rounded p-3">
+                  <div className="text-[11px] text-dark-400">MP 变化</div>
+                  <div className="text-lg font-bold text-blue-400">{formatDelta(resultSummary.sourceMpChange)}</div>
+                </div>
+                <div className="bg-dark-800 rounded p-3">
+                  <div className="text-[11px] text-dark-400">攻击者 HP 变化</div>
+                  <div className="text-lg font-bold text-green-400">{formatDelta(resultSummary.sourceHpChange)}</div>
+                </div>
+                <div className="bg-dark-800 rounded p-3">
+                  <div className="text-[11px] text-dark-400">成功效果数</div>
+                  <div className="text-lg font-bold text-primary-400">{resultSummary.successCount}</div>
+                </div>
+                <div className="bg-dark-800 rounded p-3">
+                  <div className="text-[11px] text-dark-400">本次技能</div>
+                  <div className="text-sm font-bold text-dark-100">{result.skill.name}</div>
+                </div>
+              </div>
+
+              <div className="bg-dark-800 rounded p-3 text-xs">
+                <div className="text-dark-100 font-medium mb-2">触发了哪些效果</div>
+                <div className="flex flex-wrap gap-2">
+                  {resultSummary.triggeredEffects.length > 0 ? resultSummary.triggeredEffects.map((effect, idx) => (
+                    <span key={`${effect}-${idx}`} className="px-2 py-1 rounded bg-dark-600 text-dark-200">
+                      {effect}
+                    </span>
+                  )) : <span className="text-dark-400">没有成功触发的效果</span>}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="bg-dark-800 rounded p-3">
                   <div className="font-medium text-dark-100 mb-2">攻击者</div>
@@ -144,13 +254,16 @@ export function SkillDebugPanel({
               </div>
 
               <div>
-                <div className="text-xs font-medium text-dark-100 mb-2">效果结果（MP 消耗 {result.mpCost}）</div>
-                <div className="space-y-2">
+                <div className="text-xs font-medium text-dark-100 mb-2">效果明细（MP 消耗 {result.mpCost}）</div>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
                   {result.results.map((item, idx) => (
-                    <div key={idx} className="bg-dark-800 rounded p-2 text-xs text-dark-300">
-                      <div className="text-dark-100">{item.effectType} {item.success ? '✓' : '✗'}</div>
-                      <div>{item.description}</div>
-                      {item.value !== undefined && <div>数值: {item.value}</div>}
+                    <div key={idx} className="bg-dark-800 rounded p-2 text-xs text-dark-300 border border-dark-600">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-dark-100 font-medium">{item.effectType}</div>
+                        <div className={item.success ? 'text-green-400' : 'text-red-400'}>{item.success ? '成功' : '失败'}</div>
+                      </div>
+                      <div className="mt-1">{item.description}</div>
+                      {item.value !== undefined && <div className="mt-1 text-dark-400">数值：{item.value}</div>}
                     </div>
                   ))}
                 </div>
@@ -160,7 +273,7 @@ export function SkillDebugPanel({
                 <div className="text-xs font-medium text-dark-100 mb-2">事件日志</div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {result.events.map((event, idx) => (
-                    <div key={idx} className="bg-dark-800 rounded p-2 text-xs text-dark-300">
+                    <div key={idx} className="bg-dark-800 rounded p-2 text-xs text-dark-300 border border-dark-600">
                       <div className="text-dark-100">{event.type}</div>
                       <div>{event.description}</div>
                     </div>
