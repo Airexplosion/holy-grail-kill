@@ -5,6 +5,7 @@ import * as adminLibrary from '../services/admin-library.service.js'
 import * as accountService from '../services/account.service.js'
 import * as skillSubmissionService from '../services/skill-submission.service.js'
 import * as draftService from '../services/draft.service.js'
+import * as skillDebugService from '../services/skill-debug.service.js'
 import * as charService from '../services/character-submission.service.js'
 import * as packGroupService from '../services/pack-group.service.js'
 import { reviewCharacterSchema, createPackGroupSchema } from 'shared'
@@ -59,6 +60,13 @@ router.post('/skills/seed', (_req, res, next) => {
   try {
     adminLibrary.seedSkillsFromConstants()
     res.json({ success: true, message: '已从默认库导入技能' })
+  } catch (err) { next(err) }
+})
+
+router.post('/skills/debug-test', (req, res, next) => {
+  try {
+    const result = skillDebugService.runSkillDebugSandbox(req.body)
+    res.json({ success: true, data: result })
   } catch (err) { next(err) }
 })
 

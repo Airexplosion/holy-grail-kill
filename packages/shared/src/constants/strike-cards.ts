@@ -11,21 +11,21 @@ export const STRIKE_CARD_TEMPLATES: readonly StrikeCardTemplate[] = [
     color: 'red',
     name: '红击',
     baseDamage: 10,
-    description: '基础攻击牌。可攻击目标造成10伤害，也可响应绿击的攻击。',
+    description: '基础攻击牌。命中时造成攻击者的基准伤害，也可响应绿击的攻击。',
   },
   {
     id: 'strike_blue',
     color: 'blue',
     name: '蓝击',
     baseDamage: 10,
-    description: '基础攻击牌。可攻击目标造成10伤害，也可响应红击的攻击。',
+    description: '基础攻击牌。命中时造成攻击者的基准伤害，也可响应红击的攻击。',
   },
   {
     id: 'strike_green',
     color: 'green',
     name: '绿击',
     baseDamage: 10,
-    description: '基础攻击牌。可攻击目标造成10伤害，也可响应蓝击的攻击。',
+    description: '基础攻击牌。命中时造成攻击者的基准伤害，也可响应蓝击的攻击。',
   },
 ]
 

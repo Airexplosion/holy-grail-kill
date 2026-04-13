@@ -7,6 +7,16 @@ import type { SkillLibraryEntry, StrikeCardTemplate } from 'shared'
 
 // ===== Skill Library =====
 
+function ensureSkillRows() {
+  const db = getDb()
+  let dbRows = db.select().from(adminSkillLibrary).all()
+  if (dbRows.length === 0) {
+    seedSkillsFromConstants()
+    dbRows = db.select().from(adminSkillLibrary).all()
+  }
+  return dbRows
+}
+
 function rowToSkill(row: any): SkillLibraryEntry {
   return {
     id: row.id,
@@ -26,47 +36,16 @@ function rowToSkill(row: any): SkillLibraryEntry {
   }
 }
 
-/** Get all skills: DB entries override constants by ID */
+/** Get all skills: runtime reads from DB only, auto-bootstrapped from constants on first use */
 export function getAllSkills(): SkillLibraryEntry[] {
-  const db = getDb()
-  const dbRows = db.select().from(adminSkillLibrary).all()
-  if (dbRows.length === 0) return [...SKILL_LIBRARY]
-
-  const dbMap = new Map(dbRows.map(r => [r.id, r]))
-  const result: SkillLibraryEntry[] = []
-
-  // DB skills first (includes overrides of constants)
-  for (const row of dbRows) {
-    if (row.enabled) result.push(rowToSkill(row))
-  }
-
-  // Constants not overridden by DB
-  for (const skill of SKILL_LIBRARY) {
-    if (!dbMap.has(skill.id)) result.push(skill)
-  }
-
-  return result
+  return ensureSkillRows()
+    .filter(row => row.enabled)
+    .map(rowToSkill)
 }
 
 /** Get all skills including disabled (admin view) */
 export function getAllSkillsAdmin() {
-  const db = getDb()
-  const dbRows = db.select().from(adminSkillLibrary).all()
-
-  // Merge: DB entries + constants not in DB
-  const dbMap = new Map(dbRows.map(r => [r.id, r]))
-  const result: Array<SkillLibraryEntry & { enabled: boolean; source: 'db' | 'constant' }> = []
-
-  for (const row of dbRows) {
-    result.push({ ...rowToSkill(row), enabled: row.enabled, source: 'db' })
-  }
-  for (const skill of SKILL_LIBRARY) {
-    if (!dbMap.has(skill.id)) {
-      result.push({ ...skill, enabled: true, source: 'constant' })
-    }
-  }
-
-  return result
+  return ensureSkillRows().map(row => ({ ...rowToSkill(row), enabled: row.enabled, source: 'db' as const, draftReady: row.draftReady }))
 }
 
 export function upsertSkill(data: Omit<SkillLibraryEntry, 'effects' | 'tags' | 'cost'> & {

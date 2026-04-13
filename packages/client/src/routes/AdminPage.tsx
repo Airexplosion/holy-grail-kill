@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 import { SkillLibraryAdmin } from '@/components/admin/SkillLibraryAdmin'
+import { SkillDebugPanel } from '@/components/admin/SkillDebugPanel'
 import { StrikeCardAdmin } from '@/components/admin/StrikeCardAdmin'
 import { CharacterReviewPanel } from '@/components/admin/CharacterReviewPanel'
 import { PackGroupPanel } from '@/components/admin/PackGroupPanel'
 import { cn } from '@/lib/cn'
 
-type Tab = 'characters' | 'pack-groups' | 'skills' | 'strikes'
+type Tab = 'characters' | 'pack-groups' | 'skills' | 'skill-debug' | 'strikes'
 
 export function AdminPage() {
   const account = useAuthStore((s) => s.account)
@@ -17,6 +18,7 @@ export function AdminPage() {
     { id: 'characters', label: '角色审核' },
     { id: 'pack-groups', label: '技能包组' },
     { id: 'skills', label: '技能库' },
+    { id: 'skill-debug', label: '技能测试' },
     { id: 'strikes', label: '击牌库' },
   ]
 
@@ -49,6 +51,7 @@ export function AdminPage() {
             {activeTab === 'characters' && <CharacterReviewPanel />}
             {activeTab === 'pack-groups' && <PackGroupPanel />}
             {activeTab === 'skills' && <SkillLibraryAdmin />}
+            {activeTab === 'skill-debug' && <SkillDebugPanel />}
             {activeTab === 'strikes' && <StrikeCardAdmin />}
           </div>
         </main>

@@ -59,6 +59,7 @@ export function initCombat(
     mp: number; mpMax: number
     skills: RuntimeSkill[]
     hand: Map<StrikeColor, number>
+    baseDamage?: number
   }>,
 ): CombatEngineState {
   const turnOrder = participants.map(p => p.id)
@@ -87,7 +88,7 @@ export function initCombat(
       mpMax: p.mpMax,
       shield: 0,
       handCount: Array.from(p.hand.values()).reduce((a, b) => a + b, 0),
-      flags: new Map(),
+      flags: new Map(p.baseDamage !== undefined ? [['baseDamage', p.baseDamage]] : []),
     })
     playerSkills.set(p.id, p.skills)
     playerHands.set(p.id, new Map(p.hand))
@@ -305,8 +306,12 @@ export function resolveChain(state: CombatEngineState): EffectResult[] {
     return []
   }
 
-  // Base damage from strike card (10)
-  let damage = 10
+  const attackerState = state.playerStates.get(attackerId)
+  const baseDamage = typeof attackerState?.flags.get('baseDamage') === 'number'
+    ? attackerState.flags.get('baseDamage') as number
+    : 10
+
+  let damage = baseDamage
 
   // Check damage bonus (地利之势 b05 etc.)
   const attackerSkills = state.playerSkills.get(attackerId) || []
