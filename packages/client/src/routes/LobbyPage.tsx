@@ -145,6 +145,12 @@ export function LobbyPage() {
             技能图鉴
           </button>
           <button
+            onClick={() => navigate('/skill-debug')}
+            className="btn-sm text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            技能测试
+          </button>
+          <button
             onClick={() => navigate('/my-characters')}
             className="btn-sm text-xs bg-green-600 hover:bg-green-700 text-white"
           >

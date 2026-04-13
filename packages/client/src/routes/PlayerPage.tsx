@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSocket } from '@/hooks/useSocket'
 import { useGameStore } from '@/stores/game.store'
@@ -23,6 +24,7 @@ import { PoolDrawModal } from '@/components/skill-pool/PoolDrawModal'
 
 export function PlayerPage() {
   useSocket()
+  const navigate = useNavigate()
   const player = useAuthStore((s) => s.player)
   const room = useAuthStore((s) => s.room)
   const leaveRoom = useAuthStore((s) => s.leaveRoom)
@@ -64,6 +66,7 @@ export function PlayerPage() {
             )}
           </div>
           <button onClick={() => setShowSkillBrowser(true)} className="btn-sm text-xs bg-dark-600 text-dark-200 hover:bg-dark-500">技能</button>
+          <button onClick={() => navigate('/skill-debug')} className="btn-sm text-xs bg-indigo-600 text-white hover:bg-indigo-700">测试</button>
           <button onClick={leaveRoom} className="btn-sm btn-secondary text-xs">离开</button>
         </div>
       </header>

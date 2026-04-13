@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSocket } from '@/hooks/useSocket'
 import { PhaseDisplay } from '@/components/game/PhaseDisplay'
@@ -17,6 +18,7 @@ type Tab = 'map' | 'players' | 'cards' | 'combat' | 'phase' | 'draft' | 'config'
 
 export function GMPage() {
   useSocket()
+  const navigate = useNavigate()
   const player = useAuthStore((s) => s.player)
   const room = useAuthStore((s) => s.room)
   const leaveRoom = useAuthStore((s) => s.leaveRoom)
@@ -47,7 +49,10 @@ export function GMPage() {
           </span>
           <PhaseDisplay />
         </div>
-        <button onClick={leaveRoom} className="btn-sm btn-secondary text-xs">返回大厅</button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/skill-debug')} className="btn-sm text-xs bg-indigo-600 text-white hover:bg-indigo-700">技能测试</button>
+          <button onClick={leaveRoom} className="btn-sm btn-secondary text-xs">返回大厅</button>
+        </div>
       </header>
 
       {/* Main Content */}

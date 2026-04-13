@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { SkillLibraryEntry } from 'shared'
 import { api } from '@/lib/api'
 
-type SkillRow = SkillLibraryEntry & { enabled: boolean; source: 'db' | 'constant' }
+type SkillRow = SkillLibraryEntry & { enabled?: boolean; source?: 'db' | 'constant' }
 
 type SandboxResult = {
   skill: SkillLibraryEntry
@@ -19,7 +19,17 @@ type SandboxResult = {
   mpCost: number
 }
 
-export function SkillDebugPanel() {
+export function SkillDebugPanel({
+  skillsPath = '/admin/skills',
+  runPath = '/admin/skills/debug-test',
+  title = '技能木头人测试',
+  description = '选择技能后，设置攻击者和木头人状态，一键查看 before/after、效果结果和事件日志。',
+}: {
+  skillsPath?: string
+  runPath?: string
+  title?: string
+  description?: string
+}) {
   const [skills, setSkills] = useState<SkillRow[]>([])
   const [skillId, setSkillId] = useState('')
   const [sourceHp, setSourceHp] = useState('100')
@@ -35,11 +45,11 @@ export function SkillDebugPanel() {
   const [running, setRunning] = useState(false)
 
   const loadSkills = useCallback(async () => {
-    const data = await api.get<SkillRow[]>('/admin/skills', { useAccountToken: true })
-    const enabled = data.filter(skill => skill.enabled)
+    const data = await api.get<SkillRow[]>(skillsPath, { useAccountToken: true })
+    const enabled = data.filter(skill => skill.enabled !== false)
     setSkills(enabled)
     if (!skillId && enabled[0]) setSkillId(enabled[0].id)
-  }, [skillId])
+  }, [skillId, skillsPath])
 
   useEffect(() => {
     loadSkills()
@@ -52,7 +62,7 @@ export function SkillDebugPanel() {
     setRunning(true)
     setError('')
     try {
-      const data = await api.post<SandboxResult>('/admin/skills/debug-test', {
+      const data = await api.post<SandboxResult>(runPath, {
         skillId,
         source: {
           hp: parseInt(sourceHp, 10) || 0,
@@ -78,8 +88,8 @@ export function SkillDebugPanel() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-dark-50">技能木头人测试</h2>
-        <p className="text-sm text-dark-300 mt-1">选择技能后，设置攻击者和木头人状态，一键查看 before/after、效果结果和事件日志。</p>
+        <h2 className="text-lg font-bold text-dark-50">{title}</h2>
+        <p className="text-sm text-dark-300 mt-1">{description}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
