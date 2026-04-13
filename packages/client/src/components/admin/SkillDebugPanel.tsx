@@ -103,6 +103,12 @@ export function SkillDebugPanel({
   const selectedSkill = useMemo(() => filteredSkills.find(skill => skill.id === skillId) || skills.find(skill => skill.id === skillId) || null, [filteredSkills, skillId, skills])
   const resultSummary = result ? summaryFromResult(result) : null
 
+  const applyDummyPreset = () => {
+    setTargetHp('100')
+    setTargetHpMax('100')
+    setTargetShield('0')
+  }
+
   const runTest = async () => {
     if (!skillId) return
     setRunning(true)
@@ -185,6 +191,16 @@ export function SkillDebugPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-dark-300">木头人预设</span>
+              <button
+                type="button"
+                onClick={applyDummyPreset}
+                className="btn-sm text-xs bg-dark-600 text-dark-200 hover:bg-dark-500"
+              >
+                100血 / 0盾
+              </button>
+            </div>
             <label className="text-xs text-dark-300">木头人 HP<input className="input text-sm w-full mt-1" value={targetHp} onChange={(e) => setTargetHp(e.target.value)} /></label>
             <label className="text-xs text-dark-300">木头人 HP上限<input className="input text-sm w-full mt-1" value={targetHpMax} onChange={(e) => setTargetHpMax(e.target.value)} /></label>
             <label className="text-xs text-dark-300 col-span-2">木头人护盾<input className="input text-sm w-full mt-1" value={targetShield} onChange={(e) => setTargetShield(e.target.value)} /></label>
