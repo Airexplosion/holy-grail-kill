@@ -7,6 +7,7 @@ import { getDb } from '../db/connection.js'
 import { players } from '../db/schema.js'
 import { C2S, S2C } from 'shared'
 import * as gameService from '../services/game.service.js'
+import * as groupService from '../services/group.service.js'
 import * as mapService from '../services/map.service.js'
 import * as playerService from '../services/player.service.js'
 import * as cardService from '../services/card.service.js'
@@ -158,6 +159,18 @@ function sendInitialState(socket: AuthenticatedSocket, auth: { playerId: string;
     turnNumber: room.turnNumber,
   })
 
+  // GameStage — must hydrate on reconnect so client routes correctly
+  const gameStage = gameService.getGameStage(auth.roomId)
+  socket.emit(S2C.GAME_STAGE_CHANGED, { stage: gameStage })
+
+  // Groups — hydrate group list and player's own group
+  const roomGroups = groupService.getRoomGroups(auth.roomId)
+  socket.emit(S2C.GROUP_LIST, { groups: roomGroups })
+  const myGroup = groupService.getPlayerGroup(auth.playerId)
+  if (myGroup) {
+    socket.emit(S2C.GROUP_STATE, { group: myGroup })
+  }
+
   // Map
   const fullMap = mapService.getFullMapState(auth.roomId)
   const knownSnapshots = auth.isGm ? undefined : outpostService.getKnownOutpostSnapshots(auth.playerId)
@@ -239,14 +252,8 @@ function requireGm(socket: AuthenticatedSocket): boolean {
 function registerGameHandlers(socket: AuthenticatedSocket, roomKey: string) {
   const auth = socket.data.auth
 
-  socket.on(C2S.GAME_START, () => {
-    if (!requireGm(socket)) return
-    const room = gameService.startGame(auth.roomId)
-    if (room) {
-      io?.to(roomKey).emit(S2C.GAME_PHASE_CHANGED, { phase: room.phase, turnNumber: room.turnNumber })
-      logService.recordLog({ roomId: auth.roomId, playerId: auth.playerId, actionType: 'phase', description: '游戏开始' })
-    }
-  })
+  // GAME_START is handled by stage-handlers.ts (self-driven game flow)
+  // No duplicate handler here to avoid GM-permission conflict
 
   socket.on(C2S.GAME_PHASE_ADVANCE, () => {
     if (!requireGm(socket)) return

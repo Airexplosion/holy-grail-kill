@@ -15,6 +15,8 @@ export function GroupFormationPage() {
   const [selectedRole, setSelectedRole] = useState<'master' | 'servant'>('servant')
   const [targetPlayerId, setTargetPlayerId] = useState<string | null>(null)
 
+  const pendingRequests = useGroupStore((s) => s.pendingRequests)
+
   const myGroup = groups.find(g =>
     (g as any).masterPlayerId === player?.id || (g as any).servantPlayerId === player?.id
   )
@@ -82,6 +84,29 @@ export function GroupFormationPage() {
             ))
           )}
         </div>
+
+        {/* 收到的组队请求 */}
+        {!myGroup && pendingRequests.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-medium text-yellow-400">收到的组队请求</h2>
+            {pendingRequests.map((req) => (
+              <div key={req.fromId} className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <span className="font-medium">{req.fromName}</span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    希望作为{req.fromRole === 'master' ? '篡者' : '幻身'}与你组队
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleAcceptRequest(req.fromId)}
+                  className="px-4 py-1.5 rounded bg-green-600 hover:bg-green-500 text-sm font-medium transition-colors"
+                >
+                  接受
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 我的状态 */}
         {myGroup ? (

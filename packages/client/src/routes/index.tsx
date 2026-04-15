@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGameStore } from '@/stores/game.store'
 import { LoginPage } from './LoginPage'
@@ -53,6 +53,34 @@ function getGameRoute(gameStage: GameStage, isGm: boolean): string {
   }
 }
 
+/** Routes that are stage-specific (auto-redirect when stage changes) */
+const STAGE_ROUTES: Record<string, GameStage> = {
+  '/group-formation': 'lobby',
+  '/character-create': 'character_create',
+  '/draft': 'draft',
+  '/deck-build': 'deck_build',
+  '/game': 'playing',
+}
+
+/** Redirects player to the correct route when gameStage doesn't match current route */
+function StageGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  const gameStage = useGameStore((s) => s.gameStage)
+  const player = useAuthStore((s) => s.player)
+
+  // GM is not stage-guarded
+  if (player?.isGm) return <>{children}</>
+
+  const expectedStage = STAGE_ROUTES[location.pathname]
+  // If current route is a stage-specific route and the stage doesn't match, redirect
+  if (expectedStage && expectedStage !== gameStage) {
+    const correctRoute = getGameRoute(gameStage, false)
+    return <Navigate to={correctRoute} replace />
+  }
+
+  return <>{children}</>
+}
+
 export function AppRouter() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const isInGame = useAuthStore((s) => s.isInGame)
@@ -82,7 +110,7 @@ export function AppRouter() {
         />
         <Route
           path="/game"
-          element={<RequireGame><PlayerPage /></RequireGame>}
+          element={<RequireGame><StageGuard><PlayerPage /></StageGuard></RequireGame>}
         />
         <Route
           path="/gm"
@@ -94,19 +122,19 @@ export function AppRouter() {
         />
         <Route
           path="/group-formation"
-          element={<RequireGame><GroupFormationPage /></RequireGame>}
+          element={<RequireGame><StageGuard><GroupFormationPage /></StageGuard></RequireGame>}
         />
         <Route
           path="/character-create"
-          element={<RequireGame><CharacterCreatePage /></RequireGame>}
+          element={<RequireGame><StageGuard><CharacterCreatePage /></StageGuard></RequireGame>}
         />
         <Route
           path="/deck-build"
-          element={<RequireGame><DeckBuildPage /></RequireGame>}
+          element={<RequireGame><StageGuard><DeckBuildPage /></StageGuard></RequireGame>}
         />
         <Route
           path="/draft"
-          element={<RequireGame><DraftPage /></RequireGame>}
+          element={<RequireGame><StageGuard><DraftPage /></StageGuard></RequireGame>}
         />
         <Route
           path="/skill-catalog"

@@ -69,6 +69,8 @@ function initTables(sqlite: Database.Database) {
       updated_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_groups_room ON groups(room_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_master ON groups(master_player_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_servant ON groups(servant_player_id);
 
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,

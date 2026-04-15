@@ -5,17 +5,23 @@
 import type { Server } from 'socket.io'
 import type { AuthenticatedSocket } from './middleware.js'
 import { C2S, S2C } from 'shared'
+import type { WarResponse, SecretKeyUseType } from 'shared'
 import { z } from 'zod'
 import * as akashaKeyService from '../services/akasha-key.service.js'
 import * as spiritService from '../services/spirit.service.js'
 import * as rewardService from '../services/reward.service.js'
 import * as groupService from '../services/group.service.js'
+import * as groupCombatService from '../services/group-combat.service.js'
+import * as gameService from '../services/game.service.js'
 import * as playerService from '../services/player.service.js'
 import * as logService from '../services/log.service.js'
 
 const killRewardSchema = z.object({ choice: z.enum(['clear_cooldowns', 'reshuffle_deck', 'restore_hp', 'attribute_boost']) })
 const spiritAttrsSchema = z.object({ spiritId: z.string(), attributes: z.array(z.string()).length(3) })
 const abilityReplaceSchema = z.object({ oldSkillId: z.string(), newSkillId: z.string() })
+const declareWarSchema = z.object({ targetGroupId: z.string() })
+const warRespondSchema = z.object({ warId: z.string(), response: z.enum(['fight', 'flee']) })
+const secretKeyUseSchema = z.object({ useType: z.enum(['prevent_fatal', 'restore_mp', 'discard_draw', 'recall_servant', 'group_move', 'forced_retreat', 'release_skill']) })
 
 export function registerVictoryHandlers(
   socket: AuthenticatedSocket,
@@ -143,6 +149,113 @@ export function registerVictoryHandlers(
 
   socket.on(C2S.ABILITY_REPLACE_SKIP, () => {
     socket.emit(S2C.ABILITY_REPLACED, { playerId: auth.playerId, skipped: true })
+  })
+
+  // ── 秘钥使用 ──
+
+  socket.on(C2S.SECRET_KEY_USE, (data: unknown) => {
+    const parsed = secretKeyUseSchema.safeParse(data)
+    if (!parsed.success) { emitError(socket, '参数验证失败'); return }
+
+    const group = groupService.getPlayerGroup(auth.playerId)
+    if (!group) { emitError(socket, '你不属于任何组'); return }
+
+    const used = groupService.useSecretKey(group.id)
+    if (!used) { emitError(socket, '没有剩余的秘钥'); return }
+
+    io.to(roomKey).emit(S2C.SECRET_KEY_UPDATE, {
+      groupId: group.id,
+      useType: parsed.data.useType,
+      remaining: (group.secretKeysRemaining - 1),
+    })
+    logService.recordLog({
+      roomId: auth.roomId,
+      playerId: auth.playerId,
+      actionType: 'key',
+      description: `使用秘钥: ${parsed.data.useType}`,
+    })
+  })
+
+  // ── 宣战 ──
+
+  socket.on(C2S.DECLARE_WAR, (data: unknown) => {
+    const parsed = declareWarSchema.safeParse(data)
+    if (!parsed.success) { emitError(socket, '参数验证失败'); return }
+
+    const group = groupService.getPlayerGroup(auth.playerId)
+    if (!group) { emitError(socket, '你不属于任何组'); return }
+
+    const player = playerService.getPlayer(auth.playerId)
+    if (!player?.regionId) { emitError(socket, '你不在任何区域'); return }
+
+    const room = gameService.getRoom(auth.roomId)
+    if (!room) return
+
+    try {
+      const war = groupCombatService.handleDeclareWar(
+        auth.roomId,
+        group.id,
+        parsed.data.targetGroupId,
+        player.regionId,
+        room.turnNumber,
+        room.currentActionPointIndex,
+      )
+
+      io.to(roomKey).emit(S2C.WAR_DECLARED, {
+        warId: war.id,
+        attackerGroupId: group.id,
+        defenderGroupId: parsed.data.targetGroupId,
+        regionId: player.regionId,
+      })
+      logService.recordLog({
+        roomId: auth.roomId,
+        playerId: auth.playerId,
+        actionType: 'war',
+        description: `向 ${parsed.data.targetGroupId} 宣战`,
+      })
+    } catch (err) {
+      emitError(socket, err instanceof Error ? err.message : '宣战失败')
+    }
+  })
+
+  // ── 宣战响应 ──
+
+  socket.on(C2S.WAR_RESPOND, (data: unknown) => {
+    const parsed = warRespondSchema.safeParse(data)
+    if (!parsed.success) { emitError(socket, '参数验证失败'); return }
+
+    try {
+      const result = groupCombatService.handleWarResponse(
+        auth.roomId,
+        parsed.data.warId,
+        parsed.data.response as WarResponse,
+      )
+
+      if (!result.war) { emitError(socket, '宣战记录不存在'); return }
+
+      io.to(roomKey).emit(S2C.WAR_RESPONSE, {
+        warId: parsed.data.warId,
+        response: parsed.data.response,
+        combatStarted: result.combatStarted || false,
+        combatId: result.combatId,
+      })
+
+      if (result.combatStarted && result.combatId) {
+        const combat = groupCombatService.getCombat(result.combatId)
+        if (combat) {
+          io.to(roomKey).emit(S2C.COMBAT_STATE_UPDATE, combat)
+        }
+      }
+
+      logService.recordLog({
+        roomId: auth.roomId,
+        playerId: auth.playerId,
+        actionType: 'war',
+        description: `宣战响应: ${parsed.data.response}`,
+      })
+    } catch (err) {
+      emitError(socket, err instanceof Error ? err.message : '响应失败')
+    }
   })
 }
 

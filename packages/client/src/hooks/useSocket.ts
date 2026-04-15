@@ -262,11 +262,30 @@ export function useSocket() {
     })
 
     socket.on(S2C.GROUP_STATE, (data: any) => {
-      if (data.group) useGroupStore.getState().setMyGroup(data.group)
+      if (data.group) {
+        const auth = useAuthStore.getState()
+        const myId = auth.player?.id
+        // Only set as myGroup if this player is a member of this group
+        if (myId && (data.group.masterPlayerId === myId || data.group.servantPlayerId === myId)) {
+          useGroupStore.getState().setMyGroup(data.group)
+        }
+      }
     })
 
     socket.on(S2C.GROUP_ELIMINATED, (data: any) => {
       useGroupStore.getState().updateGroupStatus(data.groupId, 'eliminated')
+    })
+
+    socket.on(S2C.GROUP_FORM_REQUESTED, (data: any) => {
+      const auth = useAuthStore.getState()
+      // Only store the request if this player is the target
+      if (data.toId === auth.player?.id) {
+        useGroupStore.getState().addPendingRequest({
+          fromId: data.fromId,
+          fromName: data.fromName,
+          fromRole: data.fromRole,
+        })
+      }
     })
 
     // ── Draft ──
