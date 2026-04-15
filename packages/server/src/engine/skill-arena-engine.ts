@@ -336,10 +336,10 @@ function applyEffect(session: ArenaSession, effectType: string, params: Record<s
     case 'heal': { const h = Math.min(value, target.hpMax - target.hp); target.hp += h; return { success: true, value: h, description: `回复 ${h} HP` } }
     case 'shield': target.shield += value; return { success: true, value, description: `获得 ${value} 护盾` }
     case 'gainAC': target.ac += value; return { success: true, value, description: `获得 ${value} AC` }
-    case 'amplify': session.player.amplification += value; return { success: true, value, description: `增伤 +${value}` }
+    case 'amplify': { const ampVal = (params.multiplier as number) || value || 0; session.player.amplification += ampVal; return { success: true, value: ampVal, description: `增伤 +${ampVal}` } }
     case 'damageReductionGain': session.player.reduction += value; return { success: true, value, description: `减伤 +${value}` }
-    case 'draw': { drawTo(session.playerDeck, session.playerHand, session.playerDiscard, value); return { success: true, value, description: `抽 ${value} 张牌` } }
-    case 'discard': { const removed = session.playerHand.splice(0, value); session.playerDiscard.push(...removed); return { success: true, value: removed.length, description: `弃置 ${removed.length} 张牌` } }
+    case 'draw': { const drawN = (params.count as number) || value || 1; drawTo(session.playerDeck, session.playerHand, session.playerDiscard, drawN); return { success: true, value: drawN, description: `抽 ${drawN} 张牌` } }
+    case 'discard': { const discN = (params.count as number) || value || 1; const removed = session.playerHand.splice(0, discN); session.playerDiscard.push(...removed); return { success: true, value: removed.length, description: `弃置 ${removed.length} 张牌` } }
     case 'removeShield': { const s = target.shield; target.shield = 0; return { success: true, value: s, description: `移除 ${s} 护盾` } }
     case 'addTempCard': {
       const count = (params.count as number) || 1
@@ -387,6 +387,133 @@ function applyEffect(session: ArenaSession, effectType: string, params: Record<s
     case 'stealth': return { success: true, description: '进入隐匿' }
     case 'preventDeath': return { success: true, description: '防止死亡' }
     case 'immuneToScout': return { success: true, description: '免疫侦查' }
+
+    // ── 以下为补全的19种效果处理 ──
+
+    case 'trueDamage': {
+      // 真实伤害：无视护盾/AC/减伤，直接扣HP
+      const multiplier = (params.multiplier as number) || 1
+      const fixedVal = (params.fixedValue as number) || 0
+      const targetSelf = params.targetSelf === true
+      const tgt = targetSelf ? session.player : session.dummy
+      const baseDmg = session.player.baseDamage
+      const totalDmg = fixedVal > 0 ? fixedVal : baseDmg * multiplier
+      tgt.hp = Math.max(0, tgt.hp - totalDmg)
+      return { success: true, value: totalDmg, description: `真实伤害 ${totalDmg}` }
+    }
+    case 'addTempCardByKills': {
+      // 按击杀数生成临时牌（沙盒中击杀数=0，只生成baseCount张）
+      const baseCount = (params.baseCount as number) || 1
+      const color = (params.color as string) || 'colorless'
+      for (let i = 0; i < baseCount; i++) {
+        session.playerHand.push({ id: uuid(), name: `临时${color}牌`, color, source: 'skill' })
+      }
+      return { success: true, value: baseCount, description: `生成 ${baseCount} 张临时牌 (击杀0+基础${baseCount})` }
+    }
+    case 'lockMajorityColorResponse': {
+      // 被动：锁定目标最多颜色响应（沙盒标记）
+      return { success: true, description: '被动激活：锁定目标多数颜色响应' }
+    }
+    case 'crawlingChaosRandom': {
+      // 伏行之混沌：随机4选1能力（沙盒中简化模拟）
+      const roll = Math.floor(Math.random() * 4) + 1
+      const descs = ['额外相邻移动', '侦查隐匿', '侦查+2/行动-1', '备战免费无色攻击(响应难度1)']
+      return { success: true, value: roll, description: `伏行之混沌: ${descs[roll - 1]}` }
+    }
+    case 'healByMpMax': {
+      // 按MP上限倍率回血
+      const mult = (params.multiplier as number) || 5
+      const healAmt = session.player.mpMax * mult
+      const healed = Math.min(healAmt, session.player.hpMax - session.player.hp)
+      session.player.hp += healed
+      return { success: true, value: healed, description: `回复 ${healed} HP (MP上限${session.player.mpMax}×${mult})` }
+    }
+    case 'conditionalRedraw': {
+      // 条件弃抽
+      const cnt = (params.count as number) || 1
+      const removed = session.playerHand.splice(0, cnt)
+      session.playerDiscard.push(...removed)
+      drawTo(session.playerDeck, session.playerHand, session.playerDiscard, cnt)
+      return { success: true, value: cnt, description: `弃抽 ${cnt} 张` }
+    }
+    case 'globalUnknownAttack': {
+      // 全体颜色不明攻击（沙盒中对木头人1次）
+      const hpLoss = Math.floor(Math.random() * 10) + 1
+      session.dummy.hp = Math.max(0, session.dummy.hp - hpLoss)
+      return { success: true, value: hpLoss, description: `颜色不明攻击，流失 ${hpLoss} HP` }
+    }
+    case 'mpSpendHeal': {
+      // MP消耗回血（被动标记）
+      return { success: true, description: '被动激活：MP消耗回血' }
+    }
+    case 'colorBranchAttack': {
+      // 按颜色分支（沙盒中简化：造成普通伤害）
+      const branchDmg = calcStrikeDamage(session.player.baseDamage, session.player.amplification, session.player.superAmplification, session.dummy.reduction, session.dummy.ac, 'normal' as DamageType)
+      session.dummy.hp = Math.max(0, session.dummy.hp - branchDmg.finalDamage)
+      return { success: true, value: branchDmg.finalDamage, description: `颜色分支攻击，造成 ${branchDmg.finalDamage} 伤害` }
+    }
+    case 'conditionalExtraMp': {
+      // 条件获得额外MP
+      const mpVal = (params.value as number) || 1
+      session.player.mp = Math.min(session.player.mp + mpVal, session.player.mpMax + mpVal)
+      return { success: true, value: mpVal, description: `获得 ${mpVal} 额外MP` }
+    }
+    case 'pullToCombat': {
+      // 拉远处角色入战斗（沙盒中无意义，标记即可）
+      const maxLoc = (params.maxLocations as number) || 3
+      return { success: true, description: `拉至多${maxLoc}处角色入战斗` }
+    }
+    case 'noDamageStrike': {
+      // 攻击不造成伤害标记
+      return { success: true, description: '本次攻击不造成伤害' }
+    }
+    case 'aoeForceDiscardToOne': {
+      // 全场弃牌至1张（沙盒中对木头人执行）
+      const mpCost = (params.mpCost as number) || 10
+      if (session.player.mp < mpCost) {
+        return { success: false, description: `MP不足(需${mpCost})` }
+      }
+      session.player.mp -= mpCost
+      const discardN = Math.max(0, session.dummyHand.length - 1)
+      const discarded = session.dummyHand.splice(0, discardN)
+      session.dummyDiscard.push(...discarded)
+      return { success: true, value: discardN, description: `消耗${mpCost}MP，木头人弃置${discardN}张至剩1张` }
+    }
+    case 'luckyDraw': {
+      // 幸运摸牌
+      const diceSides = parseInt(((params.dice as string) || 'd6').replace('d', '')) || 6
+      const threshold = (params.threshold as number) || 4
+      const bonusThreshold = (params.bonusThreshold as number) || 6
+      const roll = Math.floor(Math.random() * diceSides) + 1
+      let drawCount = 0
+      if (roll >= threshold) drawCount++
+      if (roll >= bonusThreshold) drawCount++
+      if (drawCount > 0) drawTo(session.playerDeck, session.playerHand, session.playerDiscard, drawCount)
+      return { success: drawCount > 0, value: drawCount, description: `掷${roll}${drawCount > 0 ? `，摸${drawCount}张` : '，未触发'}` }
+    }
+    case 'hpForMp': {
+      // HP替代MP消耗标记
+      return { success: true, description: `HP替代MP (${params.hpCost}HP省${params.mpSaved}MP)` }
+    }
+    case 'modifyAgility': {
+      // 敏捷修正（沙盒中标记即可）
+      return { success: true, description: `敏捷修正 +${params.value}` }
+    }
+    case 'modifyActionPoints': {
+      // 行动点修正
+      session.player.actionsRemaining += value
+      session.player.actionsMax += value
+      return { success: true, value, description: `行动点 +${value}` }
+    }
+    case 'move': {
+      // 移动（沙盒中无地图，标记即可）
+      return { success: true, description: `移动: ${params.type}` }
+    }
+    case 'vision': {
+      // 侦查（沙盒中标记即可）
+      return { success: true, description: `侦查: ${params.reveal}` }
+    }
+
     default: return { success: true, description: `${effectType} (未实现沙盒效果)` }
   }
 }
