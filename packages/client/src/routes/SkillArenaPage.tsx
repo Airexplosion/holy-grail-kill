@@ -92,9 +92,14 @@ export function SkillArenaPage() {
   }
 
   const s = snapshot
-  const isPlayerTurn = s.phase === 'player_turn'
+  const isPlayerAction = s.phase === 'player_action'
+  const isPlayerRespond = s.phase === 'player_respond'
   const isEnded = s.phase === 'ended'
   const isRoundEnd = s.phase === 'round_end'
+  const isDummyAction = s.phase === 'dummy_action'
+
+  const phaseLabel = isPlayerAction ? '你的行动' : isPlayerRespond ? '响应攻击！' : isEnded ? '战斗结束' : isRoundEnd ? '轮结束' : '木头人行动中'
+  const phaseBg = isPlayerAction ? 'bg-blue-600' : isPlayerRespond ? 'bg-yellow-600' : isEnded ? 'bg-red-600' : 'bg-gray-600'
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -102,9 +107,7 @@ export function SkillArenaPage() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold">技能沙盒 — 第 {s.round} 轮</h1>
           <div className="flex gap-2">
-            <span className={`text-xs px-2 py-1 rounded ${isPlayerTurn ? 'bg-blue-600' : isEnded ? 'bg-red-600' : 'bg-gray-600'}`}>
-              {isPlayerTurn ? '你的回合' : isEnded ? '战斗结束' : isRoundEnd ? '回合结束' : '木头人回合'}
-            </span>
+            <span className={`text-xs px-2 py-1 rounded ${phaseBg}`}>{phaseLabel}</span>
             <button onClick={createSession} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">重新开始</button>
           </div>
         </div>
@@ -137,31 +140,86 @@ export function SkillArenaPage() {
               </div>
             </div>
 
-            {/* 行动按钮 */}
-            {isPlayerTurn && (
+            {/* 行动区：出牌/技能/pass */}
+            {isPlayerAction && (
               <div className="space-y-2">
-                <div className="text-xs text-gray-400">出牌攻击：</div>
-                <div className="flex gap-2">
-                  {COLORS.map(c => {
-                    const count = s.playerCards.hand.filter(card => card.color === c.key).length
-                    return (
-                      <button key={c.key} onClick={() => doAction('play-strike', { color: c.key })}
-                        disabled={count === 0 || loading}
-                        className={`flex-1 py-2 rounded text-xs text-white ${count > 0 ? c.bg : 'bg-gray-700 text-gray-500'}`}>
-                        {c.label} ({count})
-                      </button>
-                    )
-                  })}
+                <div className="text-xs text-gray-400">点击手牌出牌攻击（消耗1MP+1动作）：</div>
+                <div className="flex flex-wrap gap-1">
+                  {s.playerCards.hand.map(card => (
+                    <button key={card.id} onClick={() => doAction('play-strike', { color: card.color })}
+                      disabled={s.player.mp <= 0 || s.player.actionsRemaining <= 0 || loading}
+                      className={`px-3 py-1.5 rounded text-xs text-white transition-colors ${
+                        card.color === 'red' ? 'bg-red-700 hover:bg-red-600' :
+                        card.color === 'blue' ? 'bg-blue-700 hover:bg-blue-600' :
+                        card.color === 'green' ? 'bg-green-700 hover:bg-green-600' :
+                        'bg-gray-600 hover:bg-gray-500'
+                      } disabled:opacity-40`}>
+                      {card.name}
+                    </button>
+                  ))}
                 </div>
-                <button onClick={() => doAction('pass')} className="w-full py-2 rounded bg-gray-700 hover:bg-gray-600 text-xs">
-                  结束回合
+
+                {/* 技能面板 */}
+                {s.playerSkills.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-400 mt-2">技能：</div>
+                    <div className="space-y-1 mt-1">
+                      {s.playerSkills.map(sk => (
+                        <button key={sk.id}
+                          onClick={() => doAction('use-skill', { skillId: sk.id })}
+                          disabled={!sk.usable || s.player.actionsRemaining <= 0 || loading}
+                          className={`w-full text-left p-2 rounded text-xs border transition-colors ${
+                            sk.usable ? 'border-purple-600 bg-purple-900/30 hover:bg-purple-900/50' : 'border-gray-700 bg-gray-800 opacity-50'
+                          }`}>
+                          <div className="flex justify-between">
+                            <span className="font-medium">{sk.name}</span>
+                            <span className="text-gray-500">
+                              {sk.cooldownRemaining > 0 ? `CD${sk.cooldownRemaining}` : '可用'}
+                            </span>
+                          </div>
+                          <div className="text-gray-400 mt-0.5 line-clamp-1">{sk.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={() => doAction('pass')} disabled={loading}
+                  className="w-full py-2 rounded bg-gray-700 hover:bg-gray-600 text-xs mt-2">
+                  结束本轮行动（轮到木头人）
+                </button>
+              </div>
+            )}
+
+            {/* 响应面板：木头人攻击你，选择是否响应 */}
+            {isPlayerRespond && (
+              <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-3 space-y-2">
+                <div className="text-sm text-yellow-400 font-medium">木头人攻击！选择响应：</div>
+                <div className="flex flex-wrap gap-1">
+                  {s.playerCards.hand.map(card => (
+                    <button key={card.id} onClick={() => doAction('respond', { color: card.color })}
+                      disabled={loading}
+                      className={`px-3 py-1.5 rounded text-xs text-white ${
+                        card.color === 'red' ? 'bg-red-700 hover:bg-red-600' :
+                        card.color === 'blue' ? 'bg-blue-700 hover:bg-blue-600' :
+                        card.color === 'green' ? 'bg-green-700 hover:bg-green-600' :
+                        'bg-gray-600 hover:bg-gray-500'
+                      }`}>
+                      {card.name}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => doAction('respond', {})} disabled={loading}
+                  className="w-full py-2 rounded bg-red-700 hover:bg-red-600 text-xs">
+                  不响应（承受伤害）
                 </button>
               </div>
             )}
 
             {isRoundEnd && (
-              <button onClick={() => doAction('advance-round')} className="w-full py-2 rounded bg-green-600 hover:bg-green-500 text-sm font-medium">
-                下一轮
+              <button onClick={() => doAction('advance-round')} disabled={loading}
+                className="w-full py-3 rounded bg-green-600 hover:bg-green-500 text-sm font-medium">
+                进入下一轮
               </button>
             )}
           </div>

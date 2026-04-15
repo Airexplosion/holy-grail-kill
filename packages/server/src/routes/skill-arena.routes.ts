@@ -57,12 +57,34 @@ router.post('/sessions/:id/play-strike', (req, res, next) => {
   }
 })
 
-// Pass
+// 使用技能
+router.post('/sessions/:id/use-skill', (req, res) => {
+  try {
+    const session = arenaEngine.getSession(req.params.id!)
+    if (!session) return res.status(404).json({ success: false, error: '会话不存在' })
+    const result = arenaEngine.useSkill(session, req.body.skillId)
+    res.json({ success: true, data: result })
+  } catch (err: any) { res.json({ success: false, error: err.message }) }
+})
+
+// 响应（木头人攻击你时）
+router.post('/sessions/:id/respond', (req, res) => {
+  try {
+    const session = arenaEngine.getSession(req.params.id!)
+    if (!session) return res.status(404).json({ success: false, error: '会话不存在' })
+    const result = arenaEngine.playerRespond(session, req.body.color || undefined)
+    res.json({ success: true, data: result })
+  } catch (err: any) { res.json({ success: false, error: err.message }) }
+})
+
+// Pass（结束本轮行动）
 router.post('/sessions/:id/pass', (req, res) => {
-  const session = arenaEngine.getSession(req.params.id!)
-  if (!session) return res.status(404).json({ success: false, error: '会话不存在' })
-  const snapshot = arenaEngine.playerPass(session)
-  res.json({ success: true, data: snapshot })
+  try {
+    const session = arenaEngine.getSession(req.params.id!)
+    if (!session) return res.status(404).json({ success: false, error: '会话不存在' })
+    const snapshot = arenaEngine.playerPass(session)
+    res.json({ success: true, data: snapshot })
+  } catch (err: any) { res.json({ success: false, error: err.message }) }
 })
 
 // 推进回合
