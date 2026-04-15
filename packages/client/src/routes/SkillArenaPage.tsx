@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { api } from '@/lib/api'
-import type { ArenaSnapshot, DamageBreakdown } from 'shared'
+import type { ArenaSnapshot, DamageBreakdown, SkillLibraryEntry } from 'shared'
 
 const COLORS = [
   { key: 'red', label: '红击', bg: 'bg-red-600 hover:bg-red-500' },
@@ -17,15 +17,36 @@ export function SkillArenaPage() {
     dummyBehavior: 'aggressive' as string,
   })
   const [loading, setLoading] = useState(false)
+  const [allSkills, setAllSkills] = useState<SkillLibraryEntry[]>([])
+  const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(new Set())
+  const [skillSearch, setSkillSearch] = useState('')
+
+  // 加载技能库
+  useEffect(() => {
+    api.get<SkillLibraryEntry[]>('/skill-arena/skills', { useAccountToken: true })
+      .then(data => setAllSkills(data || []))
+      .catch(() => {})
+  }, [])
+
+  const toggleSkill = useCallback((id: string) => {
+    setSelectedSkillIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }, [])
 
   const createSession = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await api.post<ArenaSnapshot>('/skill-arena/sessions', config, { useAccountToken: true })
+      const data = await api.post<ArenaSnapshot>('/skill-arena/sessions', {
+        ...config,
+        skillIds: [...selectedSkillIds],
+      }, { useAccountToken: true })
       setSnapshot(data)
       setLastBreakdown(null)
     } finally { setLoading(false) }
-  }, [config])
+  }, [config, selectedSkillIds])
 
   const doAction = useCallback(async (action: string, body?: any) => {
     if (!snapshot) return
@@ -80,9 +101,39 @@ export function SkillArenaPage() {
             </div>
           </div>
 
+          {/* 技能选择 */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-300">选择技能装备 ({selectedSkillIds.size}个)</h3>
+            <input
+              type="text" value={skillSearch} onChange={e => setSkillSearch(e.target.value)}
+              placeholder="搜索技能名..."
+              className="w-full px-3 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded"
+            />
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {allSkills
+                .filter(s => !skillSearch || s.name.includes(skillSearch) || s.description.includes(skillSearch))
+                .map(s => (
+                <button key={s.id} onClick={() => toggleSkill(s.id)}
+                  className={`w-full text-left p-2 rounded text-xs border transition-colors ${
+                    selectedSkillIds.has(s.id)
+                      ? 'border-purple-500 bg-purple-900/30'
+                      : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                  }`}>
+                  <div className="flex justify-between">
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-gray-500">{s.type} {s.cooldown > 0 ? `CD${s.cooldown}` : ''}</span>
+                  </div>
+                  <div className="text-gray-400 mt-0.5 line-clamp-1">{s.description}</div>
+                  {s.cost?.mp && <span className="text-yellow-500 text-[10px]">{s.cost.mp}MP</span>}
+                </button>
+              ))}
+              {allSkills.length === 0 && <p className="text-gray-500 text-xs">技能库为空，请在管理后台添加技能</p>}
+            </div>
+          </div>
+
           <button onClick={createSession} disabled={loading}
             className="w-full py-3 rounded bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 font-medium">
-            {loading ? '创建中...' : '开始战斗'}
+            {loading ? '创建中...' : `开始战斗${selectedSkillIds.size > 0 ? ` (${selectedSkillIds.size}个技能)` : ''}`}
           </button>
 
           <a href="/lobby" className="block text-center text-xs text-gray-500 hover:text-gray-300">返回大厅</a>
