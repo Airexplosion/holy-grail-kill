@@ -151,6 +151,12 @@ export function LobbyPage() {
             技能测试
           </button>
           <button
+            onClick={() => navigate('/skill-arena')}
+            className="btn-sm text-xs bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            战斗沙盒
+          </button>
+          <button
             onClick={() => navigate('/my-characters')}
             className="btn-sm text-xs bg-green-600 hover:bg-green-700 text-white"
           >
