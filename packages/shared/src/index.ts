@@ -78,6 +78,14 @@ export type {
 } from './types/skill-pool.js'
 export { BASE_REPLACEMENT_COUNT, POOL_DRAW_COUNT } from './types/skill-pool.js'
 
+// ── Skill Arena (技能沙盒) ──
+
+export type {
+  DummyBehavior, ArenaCharacterState, ArenaCardZones, ArenaCard,
+  DamageBreakdown, EffectStepTrace, ArenaLogEntry, ArenaSnapshot,
+  ArenaSkillState, ArenaSessionConfig,
+} from './types/skill-arena.js'
+
 // ── Solo Mode (单机模式) ──
 
 export type { SoloStage, SoloConfig, AiTemplate, AiActionStyle, SoloCombatResult, SoloGameResult } from './types/solo.js'

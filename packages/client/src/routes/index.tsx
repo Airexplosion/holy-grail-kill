@@ -14,6 +14,7 @@ import { SkillCatalogPage } from './SkillCatalogPage'
 import { SkillSubmitPage } from './SkillSubmitPage'
 import { SoloPage } from './SoloPage'
 import { DraftSimPage } from './DraftSimPage'
+import { SkillArenaPage } from './SkillArenaPage'
 import { MyCharactersPage } from './MyCharactersPage'
 import { SkillBrowserPage } from './SkillBrowserPage'
 import { SkillDebugPage } from './SkillDebugPage'
@@ -144,6 +145,10 @@ export function AppRouter() {
         <Route
           path="/skill-catalog"
           element={<RequireAuth><SkillCatalogPage /></RequireAuth>}
+        />
+        <Route
+          path="/skill-arena"
+          element={<RequireAuth><SkillArenaPage /></RequireAuth>}
         />
         <Route
           path="/skill-submit"

@@ -17,6 +17,7 @@ import skillDebugRoutes from './routes/skill-debug.routes.js'
 import soloRoutes from './routes/solo.routes.js'
 import draftSimRoutes from './routes/draft-sim.routes.js'
 import characterRoutes from './routes/character.routes.js'
+import skillArenaRoutes from './routes/skill-arena.routes.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -34,6 +35,7 @@ app.use('/api/skill-debug', skillDebugRoutes)
 app.use('/api/solo', soloRoutes)
 app.use('/api/draft-sim', draftSimRoutes)
 app.use('/api/characters', characterRoutes)
+app.use('/api/skill-arena', skillArenaRoutes)
 
 // Error handler
 app.use(errorHandler)
