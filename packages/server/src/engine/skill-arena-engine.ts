@@ -73,6 +73,23 @@ export function createSession(
   const strikes = config.strikeCards || { red: 8, blue: 8, green: 8 }
 
   const playerDeck = buildDeck(strikes)
+
+  // [卡牌N] 类技能：在创建时就把卡加入牌库
+  if (config.skills) {
+    for (const skill of config.skills) {
+      for (const eff of skill.effects) {
+        if (eff.effectType === 'addTempCard') {
+          const count = (eff.params.count as number) || 1
+          const color = (eff.params.color as string) || 'colorless'
+          const cardName = (eff.params.name as string) || skill.name
+          for (let i = 0; i < count; i++) {
+            playerDeck.push({ id: uuid(), name: cardName, color, source: 'skill', sourceSkillName: skill.name })
+          }
+        }
+      }
+    }
+  }
+
   const shuffledP = fisherYatesShuffle(playerDeck)
   const dummyDeck = buildDeck({ red: 8, blue: 8, green: 8 })
   const shuffledD = fisherYatesShuffle(dummyDeck)
@@ -322,8 +339,55 @@ function applyEffect(session: ArenaSession, effectType: string, params: Record<s
     case 'amplify': session.player.amplification += value; return { success: true, value, description: `增伤 +${value}` }
     case 'damageReductionGain': session.player.reduction += value; return { success: true, value, description: `减伤 +${value}` }
     case 'draw': { drawTo(session.playerDeck, session.playerHand, session.playerDiscard, value); return { success: true, value, description: `抽 ${value} 张牌` } }
+    case 'discard': { const removed = session.playerHand.splice(0, value); session.playerDiscard.push(...removed); return { success: true, value: removed.length, description: `弃置 ${removed.length} 张牌` } }
     case 'removeShield': { const s = target.shield; target.shield = 0; return { success: true, value: s, description: `移除 ${s} 护盾` } }
-    default: return { success: true, description: `${effectType} 已执行` }
+    case 'addTempCard': {
+      const count = (params.count as number) || 1
+      const color = (params.color as string) || 'colorless'
+      const cardName = (params.name as string) || `${color}牌`
+      const toHand = params.toHand === true
+      for (let i = 0; i < count; i++) {
+        const card: ArenaCard = { id: uuid(), name: cardName, color, source: 'skill', sourceSkillName: params.sourceSkillName as string }
+        if (toHand) { session.playerHand.push(card) } else { session.playerDeck.unshift(card) }
+      }
+      const dest = toHand ? '手牌' : '牌库顶部'
+      return { success: true, value: count, description: `加入 ${count} 张 ${cardName} 到${dest}` }
+    }
+    case 'retrieveDiscard': {
+      const count2 = (params.count as number) || 1
+      const recovered = session.playerDiscard.splice(0, count2)
+      session.playerHand.push(...recovered.map(c => ({ ...c, source: 'recovered' as const })))
+      return { success: true, value: recovered.length, description: `从弃牌堆回收 ${recovered.length} 张` }
+    }
+    case 'forceDiscard': {
+      const fc = (params.count as number) || 1
+      const tgt = params.target === 'self' ? session.playerHand : session.dummyHand
+      const tgtDiscard = params.target === 'self' ? session.playerDiscard : session.dummyDiscard
+      const fd = tgt.splice(0, fc)
+      tgtDiscard.push(...fd)
+      return { success: true, value: fd.length, description: `强制弃置 ${fd.length} 张` }
+    }
+    case 'freeStrike': {
+      // 免费攻击一次
+      const fColor = (params.color as string) || 'red'
+      const fDmg = calcStrikeDamage(session.player.baseDamage, session.player.amplification, session.player.superAmplification, session.dummy.reduction, session.dummy.ac, 'normal' as DamageType)
+      session.dummy.hp = Math.max(0, session.dummy.hp - fDmg.finalDamage)
+      return { success: true, value: fDmg.finalDamage, description: `免费${fColor}击，造成 ${fDmg.finalDamage} 伤害` }
+    }
+    case 'overrideDamageType': { session.player.amplification += 0; return { success: true, description: `伤害类型覆盖: ${params.damageType}` } }
+    case 'modifyActions': { session.player.actionsRemaining += value; session.player.actionsMax += value; return { success: true, value, description: `动作数 +${value}` } }
+    case 'modifyResponseDifficulty': return { success: true, description: `响应难度修改` }
+    case 'setFlag': return { success: true, description: `标记: ${params.flag}` }
+    case 'conditional': return { success: true, description: `条件检查: ${params.flag}` }
+    case 'hpThresholdTrigger': return { success: true, description: `HP阈值检查` }
+    case 'negateEffect': return { success: true, description: `无效化效果` }
+    case 'chargeGain': return { success: true, description: `充能 +${value}` }
+    case 'superAmplify': { session.player.superAmplification += value; return { success: true, value, description: `超级增伤 +${value}` } }
+    case 'reflect': { session.dummy.hp = Math.max(0, session.dummy.hp - value); return { success: true, value, description: `反弹 ${value} 伤害` } }
+    case 'stealth': return { success: true, description: '进入隐匿' }
+    case 'preventDeath': return { success: true, description: '防止死亡' }
+    case 'immuneToScout': return { success: true, description: '免疫侦查' }
+    default: return { success: true, description: `${effectType} (未实现沙盒效果)` }
   }
 }
 
