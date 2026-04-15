@@ -180,6 +180,8 @@ export const S2C = {
   GROUP_LIST: 'group:list',
   GROUP_STATE: 'group:state',
   GROUP_ELIMINATED: 'group:eliminated',
+  /** 组队请求通知（有人向你发送了组队请求） */
+  GROUP_FORM_REQUESTED: 'group:form:requested',
 
   // ── 角色创建 ──
   CHARACTER_STATE: 'character:state',

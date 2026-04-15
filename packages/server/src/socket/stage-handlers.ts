@@ -11,6 +11,7 @@ import * as stageFlow from '../services/stage-flow.service.js'
 import * as gameService from '../services/game.service.js'
 import * as groupService from '../services/group.service.js'
 import * as playerService from '../services/player.service.js'
+import * as draftService from '../services/draft.service.js'
 import * as logService from '../services/log.service.js'
 import { PLAYER_COLORS } from 'shared'
 
@@ -36,6 +37,12 @@ export function registerStageHandlers(
 
     stageFlow.forceSetStage(auth.roomId, parsed.data.stage)
     io.to(roomKey).emit(S2C.GAME_STAGE_CHANGED, { stage: parsed.data.stage })
+
+    // 进入 draft 阶段时广播初始技能包
+    if (parsed.data.stage === 'draft') {
+      broadcastDraftPacks(io, roomKey, auth.roomId)
+    }
+
     logService.recordLog({ roomId: auth.roomId, playerId: auth.playerId, actionType: 'stage', description: `阶段设置为 ${parsed.data.stage}` })
   })
 
@@ -79,7 +86,7 @@ export function registerStageHandlers(
     pendingRequests.set(auth.roomId, filtered)
 
     // 通知目标玩家
-    io.to(roomKey).emit('group:form:requested', {
+    io.to(roomKey).emit(S2C.GROUP_FORM_REQUESTED, {
       fromId: auth.playerId,
       fromName: playerService.getPlayer(auth.playerId)?.displayName,
       toId: parsed.data.targetPlayerId,
@@ -125,5 +132,32 @@ export function tryAutoAdvance(roomId: string, roomKey: string, io: Server): voi
   const newStage = stageFlow.tryAdvanceStage(roomId)
   if (newStage) {
     io.to(roomKey).emit(S2C.GAME_STAGE_CHANGED, { stage: newStage })
+
+    // 进入 draft 阶段时广播初始技能包给每个组
+    if (newStage === 'draft') {
+      broadcastDraftPacks(io, roomKey, roomId)
+    }
   }
+}
+
+/**
+ * 广播每个组的初始/当前技能包（进入 draft 阶段时调用）
+ */
+function broadcastDraftPacks(io: Server, roomKey: string, roomId: string): void {
+  const roomSockets = io.sockets.adapter.rooms.get(roomKey)
+  if (!roomSockets) return
+
+  for (const socketId of roomSockets) {
+    const sock = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined
+    if (!sock) continue
+
+    const group = groupService.getPlayerGroup(sock.data.auth.playerId)
+    if (!group) continue
+
+    const pack = draftService.getGroupCurrentPack(roomId, group.id)
+    sock.emit(S2C.DRAFT_PACK_RECEIVED, { skills: pack })
+  }
+
+  // Also send draft state update
+  io.to(roomKey).emit(S2C.DRAFT_STATE_UPDATE, draftService.getDraftState(roomId))
 }
