@@ -21,7 +21,7 @@ export function SkillArenaPage() {
   const createSession = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await api.post<ArenaSnapshot>('/skill-arena/sessions', config)
+      const data = await api.post<ArenaSnapshot>('/skill-arena/sessions', config, { useAccountToken: true })
       setSnapshot(data)
       setLastBreakdown(null)
     } finally { setLoading(false) }
@@ -31,7 +31,7 @@ export function SkillArenaPage() {
     if (!snapshot) return
     setLoading(true)
     try {
-      const data = await api.post<any>(`/skill-arena/sessions/${snapshot.sessionId}/${action}`, body || {})
+      const data = await api.post<any>(`/skill-arena/sessions/${snapshot.sessionId}/${action}`, body || {}, { useAccountToken: true })
       if (data.snapshot) { setSnapshot(data.snapshot); setLastBreakdown(data.breakdown || null) }
       else if (data.sessionId) { setSnapshot(data); setLastBreakdown(null) }
       else { setSnapshot(data); setLastBreakdown(null) }
