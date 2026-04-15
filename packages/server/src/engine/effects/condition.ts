@@ -36,6 +36,12 @@ registerEffect('conditional', (ctx, params) => {
 })
 
 registerEffect('vision', (ctx, params) => {
+  const source = ctx.playerStates.get(ctx.sourceId)
+  if (source) {
+    // Set flag for service layer to reveal target info
+    source.flags.set('visionTarget', ctx.targetId)
+    source.flags.set('visionReveal', params.reveal || 'basic')
+  }
   ctx.events.push({ type: 'vision', playerId: ctx.sourceId, description: '获得侦查信息', data: { reveal: params.reveal, targetId: ctx.targetId } })
   return { effectType: 'vision', targetId: ctx.targetId, success: true, description: '侦查成功' }
 })
@@ -49,6 +55,11 @@ registerEffect('stealth', (ctx, _params) => {
 })
 
 registerEffect('move', (ctx, params) => {
+  const source = ctx.playerStates.get(ctx.sourceId)
+  if (source) {
+    // Set flag for service layer to process the move
+    source.flags.set('pendingMove', params.type || 'normal')
+  }
   ctx.events.push({ type: 'move', playerId: ctx.sourceId, description: '移动到新区域', data: { moveType: params.type } })
   return { effectType: 'move', targetId: ctx.sourceId, success: true, description: '移动成功' }
 })
@@ -69,19 +80,44 @@ registerEffect('scoutReveal', (ctx, params) => {
   return { effectType: 'scoutReveal', targetId: ctx.sourceId, success: true, value: 0, description: '侦查信息获取' }
 })
 
-// 被动效果占位符 — 实际在伤害计算时读取 flags
-registerEffect('damageReduction', (ctx, _params) => {
-  return { effectType: 'damageReduction', targetId: ctx.sourceId, success: true, description: '减伤被动已激活' }
+// 被动效果 — 设置 flags 供伤害计算器/战斗引擎/技能执行器读取
+registerEffect('damageReduction', (ctx, params) => {
+  const target = ctx.playerStates.get(ctx.sourceId)
+  if (target) {
+    const value = (params.value as number) || 0
+    const current = (target.flags.get('damageReduction') as number) || 0
+    target.flags.set('damageReduction', current + value)
+  }
+  return { effectType: 'damageReduction', targetId: ctx.sourceId, success: true, description: `减伤被动 +${(params.value as number) || 0}` }
 })
 
-registerEffect('damageBonus', (ctx, _params) => {
-  return { effectType: 'damageBonus', targetId: ctx.sourceId, success: true, description: '伤害加成已激活' }
+registerEffect('damageBonus', (ctx, params) => {
+  const target = ctx.playerStates.get(ctx.sourceId)
+  if (target) {
+    const value = (params.value as number) || 0
+    const current = (target.flags.get('damageBonus') as number) || 0
+    target.flags.set('damageBonus', current + value)
+  }
+  return { effectType: 'damageBonus', targetId: ctx.sourceId, success: true, description: `伤害加成 +${(params.value as number) || 0}` }
 })
 
-registerEffect('modifyPriority', (ctx, _params) => {
-  return { effectType: 'modifyPriority', targetId: ctx.sourceId, success: true, description: '优先级已调整' }
+registerEffect('modifyPriority', (ctx, params) => {
+  const target = ctx.playerStates.get(ctx.sourceId)
+  if (target) {
+    const value = (params.value as number) || 0
+    const current = (target.flags.get('priorityModifier') as number) || 0
+    target.flags.set('priorityModifier', current + value)
+  }
+  return { effectType: 'modifyPriority', targetId: ctx.sourceId, success: true, description: `优先级 +${(params.value as number) || 0}` }
 })
 
-registerEffect('mpReduction', (ctx, _params) => {
-  return { effectType: 'mpReduction', targetId: ctx.sourceId, success: true, description: 'MP消耗减少' }
+registerEffect('mpReduction', (ctx, params) => {
+  const target = ctx.playerStates.get(ctx.sourceId)
+  if (target) {
+    target.flags.set('mpReduction', true)
+    if (params.value !== undefined) {
+      target.flags.set('mpReductionValue', params.value)
+    }
+  }
+  return { effectType: 'mpReduction', targetId: ctx.sourceId, success: true, description: 'MP消耗减少已激活' }
 })

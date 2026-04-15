@@ -73,15 +73,37 @@ registerEffect('reflect', (ctx, params) => {
 })
 
 registerEffect('freeStrike', (ctx, params) => {
+  const source = ctx.playerStates.get(ctx.sourceId)
+  const target = ctx.playerStates.get(ctx.targetId)
+  let damage = 0
+  if (source && target) {
+    const baseDamage = typeof source.flags.get('baseDamage') === 'number'
+      ? source.flags.get('baseDamage') as number : 10
+    const amplification = typeof source.flags.get('amplification') === 'number'
+      ? source.flags.get('amplification') as number : 0
+    damage = Math.max(0, baseDamage + amplification)
+    // Apply shield absorption
+    if (target.shield > 0) {
+      const blocked = Math.min(target.shield, damage)
+      target.shield -= blocked
+      damage -= blocked
+    }
+    target.hp = Math.max(0, target.hp - damage)
+  }
   ctx.events.push({
     type: 'freeStrike', playerId: ctx.sourceId,
-    description: `发动免费攻击`,
-    data: { color: params.color, targetId: ctx.targetId },
+    description: `发动免费攻击，造成 ${damage} 点伤害`,
+    data: { color: params.color, targetId: ctx.targetId, damage },
   })
-  return { effectType: 'freeStrike', targetId: ctx.sourceId, success: true, value: 0, description: '免费攻击' }
+  return { effectType: 'freeStrike', targetId: ctx.sourceId, success: true, value: damage, description: `免费攻击 ${damage} 伤害` }
 })
 
 registerEffect('negateEffect', (ctx, params) => {
+  const source = ctx.playerStates.get(ctx.sourceId)
+  if (source) {
+    // Set a flag so the combat engine knows to negate the specified effect type
+    source.flags.set('negateEffect', params.negatedType || true)
+  }
   ctx.events.push({
     type: 'negateEffect', playerId: ctx.sourceId,
     description: `无效化效果: ${params.effectDescription || ''}`,
